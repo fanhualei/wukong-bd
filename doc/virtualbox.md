@@ -41,7 +41,7 @@
 
 > centos01机器安装后，默认的就是：网络地址转换(NAT)
 
-![alt](imgs\net-ant-01.png)
+![alt](imgs/net-ant-01.png)
 
 
 
@@ -49,7 +49,7 @@
 
 ping 百度，ping 我自己的win10系统，都可以ping通。
 
-![alt](imgs\net-ant-02-ping.png)
+![alt](imgs/net-ant-02-ping.png)
 
 
 
@@ -59,7 +59,7 @@ ping 百度，ping 我自己的win10系统，都可以ping通。
 
 这里生成两个网卡配置`enp0s3`与`lo`
 
-![alt](imgs\net-ant-02-ifconfig.png)
+![alt](imgs/net-ant-02-ifconfig.png)
 
 
 
@@ -67,7 +67,7 @@ ping 百度，ping 我自己的win10系统，都可以ping通。
 
 ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
-![alt](imgs\net-ant-03-ping-no.png)
+![alt](imgs/net-ant-03-ping-no.png)
 
 
 
@@ -75,7 +75,7 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 使用端口转发功能
 
-![alt](imgs\net-ant-04-relay-01.png)
+![alt](imgs/net-ant-04-relay-01.png)
 
 
 
@@ -83,17 +83,17 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 
 
-![alt](imgs\net-ant-04-relay-02.png)
+![alt](imgs/net-ant-04-relay-02.png)
 
 
 
 使用putty来访问
 
-![alt](imgs\net-ant-05-putty-01.png)
+![alt](imgs/net-ant-05-putty-01.png)
 
 
 
-![alt](imgs\net-ant-05-putty-02.png)
+![alt](imgs/net-ant-05-putty-02.png)
 
 
 

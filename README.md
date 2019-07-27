@@ -7,7 +7,7 @@
 > 目录
 
 * [虚拟机安装](doc/virtualbox.md)
-* [Linxu基本操作](doc\linux.md)
+* [Linxu基本操作](doc/linux.md)
 
 
 

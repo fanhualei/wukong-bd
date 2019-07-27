@@ -852,7 +852,7 @@ network-scripts/ifcfg-eth0
     				at> mkdir /opt/test
     				at> 这时可以
     	--按Ctrl+d结束编辑
-    	--# at -l：查看未执行的定时计划
+    	--# at -l：查看未执行的定时计
     
     3、Crontab计划任务
     -->周期性执行计划任务

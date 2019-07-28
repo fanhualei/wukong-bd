@@ -145,5 +145,86 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 
 
+### 3.1：安装增强组件
 
+只有安装了增强组件后，才进行`文件共享等操作`
+
+#### 3.1.1：将光盘放到模拟光驱中
+
+点击`安装增强功能`，就能模拟这个功能。
+
+![alt](imgs/vbox-install-addd.png)
+
+
+
+如果成功，就会显示已经将光盘放入光驱中了。
+
+![alt](imgs/vbox-install-add-01.png)
+
+
+
+如果出现报错，很大的可能是因为光驱内有其他光盘，可以通过这个菜单来选择。
+
+![alt](imgs/vbox-install-select-cdrom.png)
+
+
+
+#### 3.1.2：进行安装
+
+只要`3.1.1`上面显示已经将安装盘装载到光驱中了，就可以使用下面的命令了。
+
+```shell
+# 挂载光驱
+$ mount /dev/cdrom /mnt
+$ cd /mnt
+
+# 在安装过程中，会使用到bzip2于kernel，建议提前安装，不然还会提示安装
+$ yum install bzip2
+$ yum install kernel # yum install kernel命令可以不用执行 ，但是不知道是否可行，下次实验一下
+$ yum install gcc -y
+$ yum install kernel-headers -y
+$ yum install kernel-devel -y
+$ sh /VBoxLinuxAdditions.run install
+$ reboot
+```
+
+> 参考文档
+
+* [CentOS安装VirtualBox增强组件](https://jingyan.baidu.com/article/3c343ff7d291b30d3779630a.html)
+
+* [VirtualBox安装CentOS实现鼠标自动切换和复制粘贴功能](https://www.zhangshengrong.com/p/zD1y0dpXrv/)
+
+
+
+### 3.2：共享文件夹
+
+进行文件共享，要安装增强组件。
+
+#### 3.2.1：建立文件夹
+
+找个地方，建立一个`share`的文件夹。例如：`d:\vhosts\share`
+
+#### 3.2.2：设置共享文件夹
+
+![alt](imgs/vbox-share-dir.png)
+
+
+
+
+
+#### 3.2.3：查看文件夹内容
+
+可以重启，或者不用，查看/mdia目录，可以看到共享的文件夹
+
+![alt](imgs/vbox-share-dir-list.png)
+
+
+
+
+
+>  如果没有出现共享文件夹
+
+那么就手工的执行命令，见下面的提示。
+
+![alt](imgs/vbox-share-dir-use.png)
 

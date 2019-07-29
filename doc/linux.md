@@ -2,6 +2,10 @@
 
 以centerOS为准
 
+> 目录
+
+![alt](imgs/menu-linux.png)
+
 
 
 ## 网络配置

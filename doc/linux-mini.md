@@ -4,6 +4,10 @@ linux版本是:centos7
 
 着部分主要是为了操纵hadoop可能用到的命令做的一个总结。
 
+> 目录
+
+![alt](imgs/menu-linux-mini.png)
+
 
 
 ## 客户端工具

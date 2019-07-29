@@ -1,5 +1,11 @@
 # Hadoop
 
+> 目录
+
+![alt](imgs/hadoop-menu-use.png)
+
+
+
 
 
 > 参考网址
@@ -338,4 +344,8 @@ $ cat output/*
 ```
 $ sbin/stop-dfs.sh
 ```
+
+
+
+
 

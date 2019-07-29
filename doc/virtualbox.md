@@ -1,8 +1,12 @@
 # VirtualBox虚拟机安装
 
-
-
 我是在win10机器上安装centos的。
+
+> 目录
+
+
+
+![alt](imgs/menu-virtualbox.png)
 
 
 

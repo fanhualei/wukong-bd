@@ -8,6 +8,7 @@
 
 * [虚拟机安装](doc/virtualbox.md)
 * [Linxu基本操作](doc/linux.md)
+* [Hadoop简介](doc/hadoop-overview.md)
 * [Hadoop使用](doc/hadoop.md)
 
 

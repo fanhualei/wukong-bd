@@ -1,10 +1,6 @@
-# Hadoop
-
-> 目录
+> jp目录
 
 ![alt](imgs/hadoop-menu-use.png)
-
-
 
 
 
@@ -17,7 +13,7 @@
 
 
 
-## 1：开始安装
+# 1：开始安装
 
 当前官方推荐的是`2.9.2`
 
@@ -26,13 +22,13 @@
 
 
 
-### 1.1：必要软件
+## 1.1：必要软件
 
 * 必须安装Java™。
 * 必须安装ssh并且必须运行sshd才能使用管理远程Hadoop守护进程的Hadoop脚本
 * 
 
-#### 1.1.1：安装java
+### 1.1.1：安装java
 
 参考文档
 
@@ -77,7 +73,7 @@ export PATH=$PATH:$JAVA_HOME/bin
 
 
 
-#### 1.1.2：安装ssh
+### 1.1.2：安装ssh
 
 ```shell
 # 安装ssh于rsync ,其中rsync是用来数据同步的
@@ -95,7 +91,7 @@ $ service sshd status
 
 
 
-#### 1.1.3：其他准备
+### 1.1.3：其他准备
 
 网上推荐要做一下准备，但是我感觉没有必要做，所以先记录下来。
 
@@ -106,17 +102,17 @@ $ service sshd status
 
 
 
-### 1.2: 安装Hadoop
+## 1.2: 安装Hadoop
 
 
 
-#### 1.2.1：下载Hadoop
+### 1.2.1：下载Hadoop
 
 当前官方指定的稳定版本是2.9.1，所以下载后，放到`share`目录下。
 
 
 
-#### 1.2.2：安装Hadoop
+### 1.2.2：安装Hadoop
 
 一共有三种安装模式：
 
@@ -126,7 +122,7 @@ $ service sshd status
 
 
 
-##### 前期准备
+#### 前期准备
 
 将hadoop 解压到指定目录，并指定`JAVA_HOME`
 
@@ -145,7 +141,7 @@ $ vi etc/hadoop/hadoop-env.sh
 
 
 
-##### 配置本地模式
+#### 本地模式
 
 默认情况下，Hadoop配置为以非分布式模式运行，作为单个Java进程。这对调试很有用。
 
@@ -162,7 +158,7 @@ $ cat output/*
 
 
 
-##### 配置伪分布式模式
+#### 伪分布式模式
 
 为了防止配置错误，先备份一下hadoop，` tar -czvf hadoop-2.9.2-back.tar.gz hadoop-2.9.2/`。
 
@@ -170,7 +166,7 @@ $ cat output/*
 
 
 
-###### 修改配置文件
+##### 修改配置文件
 
 etc/hadoop/core-site.xml:
 
@@ -200,7 +196,7 @@ etc/hadoop/hdfs-site.xml:
 
 
 
-###### 设置SSH免登录
+##### 设置SSH免登录
 
 检查你是否可以免密码登录
 
@@ -220,13 +216,13 @@ $ chmod 600 ~/.ssh/authorized_keys
 
 
 
-###### 执行任务
+##### 执行MapReduce任务
 
 下面介绍了执行MapReduce任务，如果你想执行一个YARN任务，请看下一节。
 
 
 
-1：格式化文件系统
+###### 1：格式化文件系统
 
 ```shell
 $ bin/hdfs namenode -format
@@ -234,7 +230,9 @@ $ bin/hdfs namenode -format
 
 
 
-2：启动`NameNode`与`DataNode`进程
+###### 2：启动HDFS
+
+启动`NameNode`与`DataNode`
 
 ```shell
  $ sbin/start-dfs.sh
@@ -246,7 +244,9 @@ hadoop进程的log写入到了` $HADOOP_LOG_DIR`目录（默认在` $HADOOP_HOME
 
 
 
-3：浏览`NameNode`的web接口
+###### 3：浏览HDFS-WEB页面
+
+浏览`NameNode`web
 
 - NameNode - `http://localhost:50070/`
 
@@ -283,7 +283,9 @@ $  systemctl stop firewalld.service
 
 
 
-4：创建MapReduce要执行任务的HDFS目录
+###### 4：创建HDFS目录
+
+创建MapReduce要执行任务的HDFS目录
 
 ```shell
 $ bin/hdfs dfs -mkdir /user
@@ -292,7 +294,7 @@ $ bin/hdfs dfs -mkdir /user/root
 
 
 
-5：将输入的文件复制到分布式文件系统
+###### 5：将数据文件发布到HDFS
 
 ```shell
 $ bin/hdfs dfs -put etc/hadoop input
@@ -309,7 +311,9 @@ $ bin/hdfs dfs -put etc/hadoop input
 
 
 
-6：执行检索的例子：找到一个词
+###### 6：执行MapReduce任务
+
+模糊检索
 
 ```shell
  $ bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar grep input output 'dfs[a-z.]+'
@@ -319,7 +323,9 @@ $ bin/hdfs dfs -put etc/hadoop input
 
 
 
-7：检查输出的文件：从分布式系统中copy文件到本地的output目录，然后查看
+###### 7：检查输出结果
+
+从分布式系统中copy文件到本地的output目录，然后查看
 
 ```shell
 $ rm -rf output/
@@ -337,7 +343,7 @@ $ cat output/*
 
 
 
-8：当执行完毕后，可以关闭这个线程
+###### 8：执行完毕后，关闭应用
 
 在执行下面的命令的时候，可以使用`jps`来看看执行前后的变化。
 
@@ -347,5 +353,94 @@ $ sbin/stop-dfs.sh
 
 
 
+##### 通过YARN执行MapReduce
+
+通过设置几个参数并运行`ResourceManager`守护进程和`NodeManager`守护进程，您可以在伪分布式模式下在`YARN`上运行MapReduce作业。
+
+为了执行下面`YARN`指令，需要您提前执行[上一章节:1-4步](#执行mapreduce任务)
+
+###### 1：配置参数
+
+`etc/hadoop/mapred-site.xml`:
+
+```xml
+<configuration>
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>
+</configuration>
+```
+
+`etc/hadoop/yarn-site.xml`:
+
+```xml
+<configuration>
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+</configuration>
+```
 
 
+
+###### 2：启动YARN
+
+启动`ResourceManager` 与 `NodeManager` 进程:
+
+```shell
+$ sbin/start-yarn.sh
+```
+
+
+
+###### 3：浏览ResourceManager-WEB页面
+
+
+
+```
+ResourceManager - `http://localhost:8088/
+```
+
+> jps看到多出了`ResourceManager` 与 `NodeManager` 进程
+
+![alt](imgs/yarn-jsp.png)
+
+
+
+> 需要把防火墙的8088端口开放出来
+
+![alt](imgs/hadoop-firewall-yarn.png)
+
+
+
+> web界面
+
+![alt](imgs/yarn-result.png)
+
+
+
+###### 4：执行MapReduce任务
+
+按照教程，使用yarn执行MapReduce的速度比上一章节的慢很多，应该是配置的问题。下一次好好看看。
+
+同上一章节6步，建议删除分布式环境的`output`，或者写成`output1`
+
+模糊检索
+
+```shell
+ $ bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar grep input output1 'dfs[a-z.]+'
+```
+
+上面命令会在分布式服务器上的`/user/root/output`中放两个结果文件。
+
+
+
+###### 5：关闭YARN
+
+```shell
+$ sbin/stop-yarn.sh
+```
+
+这个命令只执行了关闭`yarn`，如果要关闭分布式文件系统，还要执行上一章节的第8步。

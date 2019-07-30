@@ -75,3 +75,44 @@ $ firewall-cmd --list-all
 
 
 
+
+
+## 网络管理
+
+
+
+### 修改hostname
+
+```shell
+$ hostnamectl set-hostname ***
+```
+
+
+
+### 修改hosts
+
+```shell
+vi /etc/hosts
+```
+
+
+
+
+
+## 用户权限管理
+
+
+
+### 新建管理用户
+
+在实际的管理过程中，一般不使用root用户，会建立一个新用户。这样就会有几个问题
+
+* 如何将一些root才可以操作的命令给新用户? 例如重启命令
+  * 使用：`visudo` 命令进行配置
+  * 实际使用了` /etc/sudoers`
+* 如何切换到`root`用户或其他用户?
+  * 使用：`su - 用户名`   来操作
+  * 操作完毕后要`exit`退出，而不是su回去。
+* 如何修改目录或者文件的权限？
+  * `chmod 766 目录名或文件名`
+  * chown与chgrp也可以使用

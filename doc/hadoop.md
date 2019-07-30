@@ -248,7 +248,7 @@ hadoop进程的log写入到了` $HADOOP_LOG_DIR`目录（默认在` $HADOOP_HOME
 
 浏览`NameNode`web
 
-- NameNode - `http://localhost:50070/`
+- NameNode - `http://localhost:50070/`   ` http://192.168.56.102:50070/`  
 
 大多数情况下centos中是命令行的，那么在命令行下如何看这个地址是否显示呢？
 
@@ -430,10 +430,12 @@ ResourceManager - `http://localhost:8088/
 模糊检索
 
 ```shell
- $ bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar grep input output1 'dfs[a-z.]+'
+ $ bin/yarn jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar grep input output1 'dfs[a-z.]+'
 ```
 
 上面命令会在分布式服务器上的`/user/root/output`中放两个结果文件。
+
+可以使用`yarn jar`或者`hadoop jar`
 
 
 
@@ -444,3 +446,57 @@ $ sbin/stop-yarn.sh
 ```
 
 这个命令只执行了关闭`yarn`，如果要关闭分布式文件系统，还要执行上一章节的第8步。
+
+
+
+#### 集群模式
+
+
+
+##### 硬件分配
+
+* 一台机器安装NameNode
+* 一台机器安装ResourceManger
+* Web App Proxy Server和MapReduce作业历史记录服务器通常在专用硬件或共享基础架构上运行
+* 集群中的其余计算机充当DataNode和NodeManager
+
+
+
+# 2：编写MapReduce
+
+
+
+## 2.1：基本观念
+
+网上有很多误导，造成开发者很难入手。下面说几个概念，能帮助你快速开发。
+
+* 开发MapReduce，不需要搭建Hadoop环境与使用HDFS分布式环境。
+* 不建议使用Eclipse，因为太老了，用IDEA或者VSCODE。
+* 建议在linux系统上开发，这样省了一些配置权限的问题。
+  * 将参考文档中的windows上开发需要处理的内容
+* 学习MapReduce开发，建议从Hadoop官方的提供的Example学起。
+* 如果你不会Java开发，也可以使用其他工具来代替。
+
+
+
+## 2.2：实例开发
+
+
+
+### 2.2.1：开发环境配置
+
+
+
+### 2.2.2：打包并在伪分布式下测试
+
+
+
+
+
+
+
+> 参考文档
+
+* [Hadoop: Intellij结合Maven本地运行和调试MapReduce程序 (无需搭载Hadoop和HDFS环境)](https://blog.csdn.net/binbigdata/article/details/80380344)
+* [IDEA 开发hadoop项目配置及打包](https://blog.csdn.net/a377987399/article/details/80510776)
+

@@ -658,8 +658,6 @@ IDEA是JAVA开发的主流开发工具.
 
 
 
-
-
 > Maven 依赖包的分类
 
 * Compile Dependencies
@@ -674,6 +672,62 @@ IDEA是JAVA开发的主流开发工具.
 
 
 ### 2.2.2：开发步骤
+
+
+
+#### 2.2.2.1：使用IDEA新工程
+
+* 建立一个Maven工程
+* 选择JDK要与hadoop保持一致,例如jdk1.7
+
+
+
+#### 2.2.2.2：引入Hadoop依赖
+
+只用`hadoop-client`一个就行,测试用.
+
+```xml
+    <properties>
+        <hadoop.version>2.9.2</hadoop.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
+    </dependencies>
+```
+
+
+
+#### 2.2.2.3：编写JAVA类
+
+为了省事,在本地建立一个类`WordCount`,复制[hadoop官方提供的例子代码](http://hadoop.apache.org/docs/stable/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html)到本地.
+
+
+
+#### 2.2.2.4：建立输入文件
+
+* 建立一个目录`input`
+* 在这个目录中建立一个a.txt文件,并输入几个单词
+
+#### 2.2.2.5：Debug程序
+
+![alt](imgs/idea-debug.png)
+
+
+
+#### 2.2.2.6：查看结果
+
+在output目录中可以看到具体的结果.
+
+如果下次再看的话,需要删除`output`目录,不然提示错误.
+
+![alt](imgs/idea-mapreduce-result.png)
+
+
 
 
 

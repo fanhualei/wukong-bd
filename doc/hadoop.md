@@ -632,11 +632,58 @@ $ cat output/*
 
 
 
-## 2.2：实例开发
+## 2.2：IDEA环境的配置
+
+IDEA是JAVA开发的主流开发工具.
+
+### 2.2.1：主要问题
 
 
 
-### 2.2.2：打包并上传服务器
+#### 选择依赖包
+
+有两连个选择:
+
+* 选项1:选择Hadoop下Share目录中的Jar包
+  * 问题1 选那个,不知道?
+* 使用Maven
+  * 问题1 选那个版本?
+    * 初步判断选择2.9.2这个版本
+  * 问题2 选那些?
+    * 不确定,但是发现`hadoop-client`看起来把主要的包都打入了,见下面的图.
+
+
+
+![alt](imgs/idea-maven.png)
+
+
+
+
+
+> Maven 依赖包的分类
+
+* Compile Dependencies
+  * 打包时的依赖,这些依赖会直接打入Jar包中的.
+* Provided Dependencies
+  * 打Jar包时,不打入
+* Runtime Dependencies
+  * 运行时的需要的jar包,例如tomcat环境下的jsp依赖包
+* Test Dependencies
+  * 测试需要的依赖包
+
+
+
+### 2.2.2：开发步骤
+
+
+
+
+
+## 2.3：实例开发
+
+
+
+### 2.3.2：打包并上传服务器
 
 
 

@@ -479,15 +479,13 @@ $ sbin/stop-yarn.sh
 
 
 
-## 2.2：实例开发
-
 在windows系统中可能会遇到很奇怪的问题，所以建议在linux环境下开发．
 
-### 2.2.1：开发环境配置
+## 2.2：配置本地hadoop
 
-#### 2.2.1.1：在ubuntu上安装hadoop环境
+在ubuntu上安装hadoop环境
 
-##### 查看当前版本
+### 查看当前版本
 
 看看当前版本就行，也不用修改．因为hadoop用的jdk比较老，是1.7的．
 
@@ -502,7 +500,7 @@ $ less ~/.bashrc
 # 看看那些端口被使用了
 $ sudo netstat -tlpn
 
-# （参考一下，不用来设置）将java的一些功能放入到sudo 命令中
+# （参考一下，不用操作下面的命令）将java的一些功能放入到sudo 命令中
 $ sudo visudo
 # 在secure_path后加上JDK工具的路径，如：:/opt/jdk1.8.0_161/bin
 $ ctrl+o  # 保存数据
@@ -512,7 +510,7 @@ $ ctrl+x  # 退出
 
 
 
-##### 安装hadoop环境
+### 安装hadoop环境
 
 主要是安装jdk与hadoop
 
@@ -534,7 +532,7 @@ tar xvf hadoop-2.9.2.tar.gz -C apache/
 
 
 
-##### 配置hadoop环境变量
+### 配置hadoop环境变量
 
 ```shell
 # 进入hadoop目录
@@ -550,7 +548,7 @@ $ vi etc/hadoop/hadoop-env.sh
 
 
 
-##### 测试：本地模式
+### 测试：本地模式
 
 默认情况下，Hadoop配置为以非分布式模式运行，作为单个Java进程。这对调试很有用。
 
@@ -565,7 +563,7 @@ $ cat output/*
 
 
 
-##### 测试：伪分布模式
+### 测试：伪分布模式
 
 见[1.2.2：安装Hadoop](#1.2.2：安装Hadoop)中的描述．但是这次只上传一个简单的a.txt文件，然后进行测试，如上一步．
 
@@ -573,38 +571,68 @@ $ cat output/*
 
 > 具体步骤
 
-* 1：修改配置文件
-  * etc/hadoop/core-site.xml
-    * 指定hdfs的内部接口9000
-  * etc/hadoop/hdfs-site.xml
-    * 指定备份分数１
-* 2：设置SSH免密码登录
-* 3：执行MapReduce任务
-  * 格式化文件系统
-    * bin/hdfs namenode -format
-    * 默认保存在：/tmp/hadoop-fan/
-  * 启动HDFS
-    * sbin/start-dfs.sh
-  * 创建HDFS目录
-    * bin/hdfs dfs -mkdir /user
-    * bin/hdfs dfs -mkdir /user/(这里填写当前的用户名，当然-P可以自动建立父目录)
-  * 将数据文件发布到HDFS
-    * bin/hdfs dfs -mkdir input
-    * bin/hdfs dfs -put input/a.txt input/
-  * 执行MapReduce任务
-    * bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar grep input/a.txt output 'a[a-z.]+'
-  * 检查输出结果
-    * bin/hdfs dfs -cat output/*
-  * 执行完毕后，关闭应用
-    * sbin/stop-dfs.sh
+- 1：修改配置文件
+  - etc/hadoop/core-site.xml
+    - 指定hdfs的内部接口9000
+  - etc/hadoop/hdfs-site.xml
+    - 指定备份分数１
+- 2：设置SSH免密码登录
+- 3：执行MapReduce任务
+  - 格式化文件系统
+    - bin/hdfs namenode -format
+    - 默认保存在：/tmp/hadoop-fan/
+  - 启动HDFS
+    - sbin/start-dfs.sh
+  - 创建HDFS目录
+    - bin/hdfs dfs -mkdir /user
+    - bin/hdfs dfs -mkdir /user/(这里填写当前的用户名，当然-P可以自动建立父目录)
+  - 将数据文件发布到HDFS
+    - bin/hdfs dfs -mkdir input
+    - bin/hdfs dfs -put input/a.txt input/
+  - 执行MapReduce任务
+    - bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar grep input/a.txt output 'a[a-z.]+'
+  - 检查输出结果
+    - bin/hdfs dfs -cat output/*
+  - 执行完毕后，关闭应用
+    - sbin/stop-dfs.sh
 
 > 遇到的问题
 
-​	* 提示:sed: -e 表达式 #1, 字符 19: “s”的未知选项
+- 在执行start-dfs.sh:   提示:sed: -e 表达式 #1, 字符 19: “s”的未知选项
+  - 错误原因是因为我在hadoop-env.sh文件中添加了一个echo,输出当前javaHome造成的.
+  - 解决方法,删除自己添加的内容.
+
+
+
+### 测试：YARN
+
+还是在伪分布式环境的基础上进行测试
+
+- 配置参数
+  - etc/hadoop/mapred-site.xml
+    - 配置mapreduce的框架使用yarn
+  - etc/hadoop/yarn-site.xml
+    - 配置mapreduce_shuffle
+- 启动YARN
+  - 启动hdfs
+    - sbin/start-dfs.sh
+  - 启动yarn
+    - sbin/start-yarn.sh
+- 浏览ResourceManager-WEB页面
+  - http://localhost:8088/
+- 执行MapReduce任务
+  - bin/yarn jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar grep input/a.txt output1 'a[a-z.]+'
+- 查看结果
+  - bin/hdfs dfs -cat output1/*
+- 关闭YARN
+  - sbin/stop-yarn.sh
+  - 如果要正式退出,还需要把fds给关闭了.
 
 
 
 
+
+## 2.2：实例开发
 
 
 

@@ -4,6 +4,16 @@
 
 
 
+[TOC]
+
+
+
+
+
+
+
+
+
 > 参考网址
 
 * [官方网址](http://hadoop.apache.org/)
@@ -638,8 +648,6 @@ IDEA是JAVA开发的主流开发工具.
 
 ### 2.2.1：主要问题
 
-
-
 #### 选择依赖包
 
 有两连个选择:
@@ -668,6 +676,19 @@ IDEA是JAVA开发的主流开发工具.
   * 运行时的需要的jar包,例如tomcat环境下的jsp依赖包
 * Test Dependencies
   * 测试需要的依赖包
+
+
+
+#### 怎么打包?
+
+官网上没有相关说明,网友的文章大多是新手实验的,所以最好把hadoop的源码下载下来研究一下.
+
+* 是否包含依赖文件?
+  * 看看hadoop提供的例子文件吧
+    * 里面有pom.xml文件,打包的时候没有将这些类打包
+* `hadoop-mapreduce-examples`apache
+  * 源代码放在哪里了?
+    * 这个例子的源码,放在了hadoop源码包的mapreduce工程下了.
 
 
 
@@ -713,13 +734,25 @@ IDEA是JAVA开发的主流开发工具.
 * 建立一个目录`input`
 * 在这个目录中建立一个a.txt文件,并输入几个单词
 
-#### 2.2.2.5：Debug程序
+
+
+#### 2.2.2.5：配置参数
+
+配置main函数执行的input与output目录
+
+![alt](imgs/idea-set-para.png)
+
+
+
+
+
+#### 2.2.2.6：进行Debug
 
 ![alt](imgs/idea-debug.png)
 
 
 
-#### 2.2.2.6：查看结果
+#### 2.2.2.7：查看结果
 
 在output目录中可以看到具体的结果.
 
@@ -729,19 +762,95 @@ IDEA是JAVA开发的主流开发工具.
 
 
 
+#### 2.2.2.8：到伪分布系统上执行
+
+
+
+##### 配置打包工具
+
+通过maven进行打包,编辑pom.xml.
+
+* 追加一个`maven-jar-plugin`
+* 指定`mainClass`
+
+```xml
+    <packaging>jar</packaging>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>wukong.WordCount</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+     </build>   
+```
+
+##### 进行打包
+
+![alt](imgs/idea-packageing.png)
+
+
+
+> 打包后的结果放在target
+
+![alt](imgs/idea-jar-file.png)
+
+
+
+##### 进行测试
+
+先得到生成Jar包的路径,然后进入到hadoop目录中
+
+```shell
+# 进入到hadoop目录中
+$ cd /opt/modules/apache/hadoop-2.9.2/
+
+# 由于配置的hdfs服务,所有要先启动这个服务
+$ sbin/start-dfs.sh
+
+# 查看input与output是否存在
+$ bin/hdfs dfs -ls
+
+# 如果存在output就删除
+$ bin/hdfs dfs -rm -r output
+
+# 执行命令,要写上mapduce的jar路径
+$ bin/hadoop jar /home/fan/001-db/wukong-bd/examples/mapreduce/helloworld/target/mapreduce-exapmles-hello-1.0.jar input/a.txt output
+
+# 查看结果
+$ bin/hdfs dfs -cat output/*
+
+# 关闭服务
+$ sbin/stop-dfs.sh
+```
+
+> 哈哈终于出结果了
+
+![alt](imgs/idea-jar-run-server.png)
 
 
 
 
-## 2.3：实例开发
-
-
-
-### 2.3.2：打包并上传服务器
 
 
 
 
+
+## 2.3：例子分析
+
+
+
+### 2.3.1：Hello-World
+
+hadoop官网上的代码,已经上传到服务器上了.[源代码](examples/mapreduce/helloworld)
 
 
 
@@ -749,6 +858,5 @@ IDEA是JAVA开发的主流开发工具.
 
 > 参考文档
 
-* [Hadoop: Intellij结合Maven本地运行和调试MapReduce程序 (无需搭载Hadoop和HDFS环境)](https://blog.csdn.net/binbigdata/article/details/80380344)
 * [IDEA 开发hadoop项目配置及打包](https://blog.csdn.net/a377987399/article/details/80510776)
 

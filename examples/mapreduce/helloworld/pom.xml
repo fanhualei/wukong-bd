@@ -5,8 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>wukong</groupId>
-    <artifactId>wukong-bd-mapred-hello</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>mapreduce-exapmles-hello</artifactId>
+    <version>1.0</version>
+    <packaging>jar</packaging>
 
     <properties>
         <hadoop.version>2.9.2</hadoop.version>
@@ -18,9 +19,42 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
             <version>${hadoop.version}</version>
+            <!--<scope>provided</scope>-->
         </dependency>
     </dependencies>
 
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>wukong.WordCount</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <configuration>
+                    <!-- 分析工作的等级，可以为Min、Default和Max -->
+                    <effort>Max</effort>
+                    <excludeFilterFile>${basedir}/dev-support/findbugs-exclude.xml</excludeFilterFile>
+                    <findbugsXmlOutput>true</findbugsXmlOutput>
+                    <xmlOutput>true</xmlOutput>
+                </configuration>
+                <version>3.0.5</version>
+            </plugin>
+
+
+        </plugins>
+    </build>
 
 
 </project>

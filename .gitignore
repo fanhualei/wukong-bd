@@ -8,3 +8,5 @@ target/
 
 # 忽略输出的output结果文件
 output/
+
+output-*/

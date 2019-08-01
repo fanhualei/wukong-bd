@@ -873,7 +873,9 @@ hadoop官方的例子,可以参考一下,[源代码与文档](https://github.com
 
 
 
+### 2.3.3:wukong-mapreduce-examples
 
+[参考了网友的案例分析](https://blog.csdn.net/jin6872115/article/category/7513962)
 
 
 

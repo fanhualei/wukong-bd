@@ -2,6 +2,8 @@
 
 这个例子是参考了hadoop官网关于mapreduce介绍文档做出来的.
 
+所有代码都在`ubuntu`上用`IDEA`调试通过,听说`windows`系统有很多小错误要处理.
+
 [官网介绍的具体地址](http://hadoop.apache.org/docs/stable/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html)
 
 
@@ -72,15 +74,15 @@ TODO: 代码比较简单,那天有空加上中文注释.
 
 按照官网的文档,这个函数有不同的执行方法,并且输出不同的结果.
 
-> 不加过滤文件
+#### 不加过滤特殊字符
 
-参数
+> 参数
 
 ```
 input/wordcount2 output  
 ```
 
-结果
+> 结果
 
 ```
 Bye	1
@@ -97,17 +99,17 @@ to	1
 
 
 
-> 加过滤文件
+#### 过滤掉特殊字符
 
 过滤标点符号与特殊字符
 
-参数
+> 参数
 
 ```
 input/wordcount2 output  -skip input/patterns/patterns.txt
 ```
 
-结果
+> 结果
 
 ```
 Bye	1
@@ -120,17 +122,17 @@ hadoop	1
 
 
 
-> 小写参数
+#### 变成小写后合并统计
 
 都转换成小写了,并且进行了合并.
 
-参数
+> 参数
 
 ```
 -Dwordcount.case.sensitive=false input/wordcount2 output2  -skip input/patterns/patterns.txt
 ```
 
-结果
+> 结果
 
 ```
 bye	1

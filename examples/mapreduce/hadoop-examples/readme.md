@@ -6,7 +6,7 @@
 
 
 
-## 编译
+## 如何建立IDEA工程
 
 从hadoop2.9.2-src包中精简的代码.具体步骤如下:
 
@@ -27,7 +27,7 @@
 
 
 
-> 设置jdk
+### 设置jdk
 
 
 
@@ -35,33 +35,43 @@
 
 
 
-> 配置日志目录与编译环境
+### 配置日志目录与编译环境
 
 ![alt](doc/imgs/project-seting.png)
 
 
 
-> 目录说明
+### 目录说明
 
 ![alt](doc/imgs/dir.png)
 
-
-
-
-
-## 本地运行
-
 将数据文件放到`input`目录中,就可以执行了.
+
+
+
+### 本地运行
 
 建议在本地运行就行了,这个代码不用传到服务器上了.
 
 ![art](doc/imgs/debug-seting.png)
 
+这里要是设置`HADOOP_HOME`,不然有些函数会报错
+
+HADOOP_HOME = /opt/modules/apache/hadoop-2.9.2
 
 
-### 可运行的函数
 
-####  input
+
+
+## 函数说明
+
+###  input数据
+
+只做了简单的测试,下面的函数,有些需要用到更复杂的文件.
+
+
+
+> input/a.txt 文件内容
 
 ```
 a
@@ -76,11 +86,11 @@ hhhhhhhh
 
 
 
-####  output
+###  相关函数
 
 
 
-#####  wordcount
+####  wordcount
 
   * A map/reduce program that counts the words in the input files.
   * 统计字数
@@ -98,7 +108,7 @@ hhhhhhhh	1
 
 
 
-#####  wordmean 
+####  wordmean 
 
   * A map/reduce program that counts the average length of the words in the input files.
   * 统计单词个数,并且输出总长度
@@ -112,7 +122,7 @@ length	36
 
 
 
-#####  wordmedian
+####  wordmedian
 
   * A map/reduce program that counts the median length of the words in the input files.
   * 按照长度,统计每种长度的文字有几个
@@ -131,7 +141,7 @@ length	36
 
 
 
-#####  wordstandarddeviation
+####  wordstandarddeviation
 
   * A map/reduce program that counts the standard deviation of the length of the words in the input files.
   * 标准偏差进行计数
@@ -142,31 +152,31 @@ length	36
 square	204
 ```
 
-##### aggregatewordcount
+#### aggregatewordcount
 
 An Aggregate based map/reduce program that counts the words in the input files.
 
 这个执行不了,因为
 
 ```
-HADOOP_HOME and hadoop.home.dir are unset.
+a.txt not a SequenceFile
 ```
 
 
 
-##### aggregatewordhist
+#### aggregatewordhist
 
 An Aggregate based map/reduce program that computes the histogram of the words in the input files.
 
 这个执行不了,因为
 
 ```
-HADOOP_HOME and hadoop.home.dir are unset.
+a.txt not a SequenceFile
 ```
 
 
 
-##### grep
+#### grep
 
 A map/reduce program that counts the matches of a regex in the input.
 
@@ -174,91 +184,91 @@ A map/reduce program that counts the matches of a regex in the input.
 
 
 
-##### randomwriter
+#### randomwriter
 
 随机写入10GB的数据,为每个节点
 
 A map/reduce program that writes 10GB of random data per node.
 
-##### randomtextwriter
+#### randomtextwriter
 
 A map/reduce program that writes 10GB of random textual data per node.
 
 随机写入10GB的数据,为每个节点
 
-##### sort
+#### sort
 
 A map/reduce program that sorts the data written by the random writer.
 
 这个执行不了,因为
 
 ```
-HADOOP_HOME and hadoop.home.dir are unset.
+a.txt not a SequenceFile
 ```
 
 
 
-##### pi
+#### pi
 
 A map/reduce program that estimates Pi using a quasi-Monte Carlo method.
 
 
 
-##### bbp
+#### bbp
 
 A map/reduce program that uses Bailey-Borwein-Plouffe to compute exact digits of Pi.
 
-##### distbbp
+#### distbbp
 
 A map/reduce program that uses a BBP-type formula to compute exact bits of Pi.
 
-##### pentomino
+#### pentomino
 
 A map/reduce tile laying program to find solutions to pentomino problems.
 
 
 
-##### secondarysort
+#### secondarysort
 
 An example defining a secondary sort to the reduce.
 
 
 
-##### sudoku
+#### sudoku
 
 A sudoku solver.
 
 
 
-##### join
+#### join
 
 A job that effects a join over sorted, equally partitioned datasets
 
 
 
-##### multifilewc
+#### multifilewc
 
 A job that counts words from several files.
 
 
 
-##### dbcount
+#### dbcount
 
 An example job that count the pageview counts from a database.
 
 
 
-##### teragen
+#### teragen
 
 Generate data for the terasort
 
 
 
-##### terasort
+#### terasort
 
 Run the terasort
 
-##### teravalidate
+#### teravalidate
 
 
 
@@ -269,10 +279,6 @@ Checking results of terasort
 
 
 ## 代码分析
-
-
-
-
 
 
 

@@ -848,9 +848,30 @@ $ sbin/stop-dfs.sh
 
 
 
+> MapReduce 接口
+
+* `Mapper`和`Reducer`接口。应用程序通常会实现它们以提供`map`和`reduce`方法。
+* 核心接口，包括`Job`，`Partitioner`，`InputFormat`，`OutputFormat`等。
+* 一些有用功能，如`DistributedCache`，`IsolationRunner`等。
+
+
+
+
+
 ### 2.3.1：Hello-World
 
-hadoop官网上的代码,已经上传到服务器上了.[源代码](examples/mapreduce/helloworld)
+hadoop官网上的入门程序,[官网的说明](http://hadoop.apache.org/docs/stable/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html).
+
+我在IDEA中debug的过程,已经上传到服务器上了.[源代码与文档](https://github.com/fanhualei/wukong-bd/tree/master/examples/mapreduce/helloworld)
+
+* 一个基本的例子
+* 一个复杂的例子,里面待了过滤器等.
+
+### 2.3.2：Hadoop-mapreduce-examples
+
+hadoop官方的例子,可以参考一下,[源代码与文档](https://github.com/fanhualei/wukong-bd/tree/master/examples/mapreduce/hadoop-examples)
+
+
 
 
 

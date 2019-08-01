@@ -285,3 +285,5 @@ Checking results of terasort
 ## 参考文档
 
 * [运行 MapReduce 样例](https://blog.csdn.net/chengqiuming/article/details/78826143)
+* [精通HADOOP（五） - 初识Hadoop - 执行和测试Hadoop样例程序](https://blog.csdn.net/robertleepeak/article/details/6008239)
+

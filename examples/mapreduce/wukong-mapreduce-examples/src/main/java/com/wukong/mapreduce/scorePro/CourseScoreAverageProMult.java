@@ -1,9 +1,11 @@
 package com.wukong.mapreduce.scorePro;
 
 
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Partitioner;
@@ -13,6 +15,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -26,7 +29,7 @@ public class CourseScoreAverageProMult  {
 
 
 
-    private static class MyMapper extends Mapper<Object,Text,Text,FloatWritable>{
+    private static class MyMapper extends Mapper<Object,Text,Student,NullWritable>{
 
         @Override
         public void map(Object inKey,Text inValue,Context context)
@@ -43,47 +46,28 @@ public class CourseScoreAverageProMult  {
                 sum+=Integer.parseInt(fields[i]);
             }
             avg=sum/count;
-            context.write(new Text(fields[0]+","+fields[1]),
-                    new FloatWritable(avg)
-                    );
+            Student student=new Student(fields[1],avg,fields[0]);
+            context.write(student,NullWritable.get() );
 
         }
 
     }
 
 
-    private static  class  MyReducer extends Reducer<Text,FloatWritable,Text,FloatWritable>{
+    private static  class  MyReducer extends Reducer<Student,NullWritable,Student,NullWritable>{
         @Override
-        public void reduce(Text inKey, Iterable<FloatWritable> inValues,Context context) throws IOException,InterruptedException{
-
-            FloatWritable value=inValues.iterator().next();
-            String[] fileds=inKey.toString().split(",");
-            multipleOutputs.write(inKey,value,fileds[0]);
-
-        }
-
-
-        private String getName(String inStr){
-            if(inStr.equals("计算机")){
-                return "aaa";
-            }else if(inStr.equals("英语")){
-                return "bbb";
-            }else if(inStr.equals("语文")){
-                return "ccc";
-            }else if(inStr.equals("数学")){
-                return "ddd";
-            }
-            return "eee";
+        public void reduce(Student student, Iterable<NullWritable> inValues,Context context) throws IOException,InterruptedException{
+            multipleOutputs.write(student,NullWritable.get(),student.getCourse());
         }
 
 
         /**
          * 文件输出
          */
-        private MultipleOutputs<Text,FloatWritable> multipleOutputs;
+        private MultipleOutputs<Student,NullWritable> multipleOutputs;
         @Override
         protected void setup(Context context){
-            multipleOutputs = new MultipleOutputs<Text,FloatWritable>(context);
+            multipleOutputs = new MultipleOutputs<Student,NullWritable>(context);
         }
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException{
@@ -94,6 +78,15 @@ public class CourseScoreAverageProMult  {
 
 
     public static void main(String[] args) throws Exception{
+
+
+        //提前删除输出目录
+        File outPutDir=new File(args[1]);
+        if(outPutDir.exists()){
+            FileUtils.deleteDirectory(outPutDir);
+        }
+
+
         Configuration conf=new Configuration();
         Job job=Job.getInstance(conf,"将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.");
 
@@ -101,15 +94,13 @@ public class CourseScoreAverageProMult  {
         job.setMapperClass(MyMapper.class);
         job.setReducerClass(MyReducer.class);
 
-        job.setMapOutputValueClass(FloatWritable.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(FloatWritable.class);
+        job.setMapOutputKeyClass(Student.class);
+        job.setMapOutputValueClass(NullWritable.class);
+        job.setOutputKeyClass(Student.class);
+        job.setOutputValueClass(NullWritable.class);
 
         FileInputFormat.addInputPath(job,new Path(args[0]));
         FileOutputFormat.setOutputPath(job,new Path(args[1]));
-
-
-
 
         System.exit(job.waitForCompletion(true)?0:1);
 

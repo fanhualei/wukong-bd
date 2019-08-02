@@ -16,13 +16,13 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 
 /**
- * 求一个科目成绩的 最大值 最小值 平均值
+ * 求每个科目成绩的 最大值 最小值 平均值
  * 数据文件在:input/course-score-max-min-avg
  * @author fan
  */
 public class CourseScoreMaxMinAvg {
 
-    public static class MyMapper extends Mapper<LongWritable, Text, Text, Text> {
+    private static class MyMapper extends Mapper<LongWritable, Text, Text, Text> {
 
 
 
@@ -53,7 +53,7 @@ public class CourseScoreMaxMinAvg {
         }
     }
 
-    public static class MyReducer extends Reducer<Text, Text, Text, Text> {
+    private static class MyReducer extends Reducer<Text, Text, Text, Text> {
 
 
         /**

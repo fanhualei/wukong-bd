@@ -8,27 +8,27 @@
 
 
 
-| 数据文件           | 类名                          | 功能说明                                                     |
-| ------------------ | ----------------------------- | ------------------------------------------------------------ |
-| score/score.txt    | CourseScoreMaxMinAvg          | 求每个科目成绩的 最大值 最小值 平均值                        |
-| score/score.txt    | CourseScoreGrouping           | 统计科目中分数相同的人有多少,每个人的人名                    |
-| score/score.txt    | ScoreAverage                  | 统计学生的平均成绩                                           |
-| scorePro/score.txt | CourseScoreAveragePro         | 求每个课程的参考人数与平均成绩                               |
-| scorePro/score.txt | CourseScoreAverageProMultFile | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序. |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
-|                    |                               |                                                              |
+| 数据文件           | 类名                         | 功能说明                                                     |
+| ------------------ | ---------------------------- | ------------------------------------------------------------ |
+| score/score.txt    | CourseScoreMaxMinAvg         | 求每个科目成绩的 最大值 最小值 平均值                        |
+| score/score.txt    | CourseScoreGrouping          | 统计科目中分数相同的人有多少,每个人的人名                    |
+| score/score.txt    | ScoreAverage                 | 统计学生的平均成绩                                           |
+| scorePro/score.txt | CourseScoreAveragePro        | 求每个课程的考试人数与平均成绩                               |
+| scorePro/score.txt | CourseScoreAverageProMult    | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`MultipleOutputs` |
+| scorePro/score.txt | CourseScoreAverageProPartion | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`Partitioner` |
+| scorePro/score.txt | CourseHighestScoreStudent    | 求每个科目中分数最高的学生,使用了分组工具                    |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
+|                    |                              |                                                              |
 
 
 
@@ -37,8 +37,6 @@
 
 
 ### 成绩统计
-
-
 
 [参考网址](https://blog.csdn.net/jin6872115/article/details/79585755)
 
@@ -170,6 +168,40 @@
 
 
 
+## 关键问题
+
+
+
+### 如何输出到不同的文件?
+
+
+
+### 如何进行排序?
+
+首先Hadoop默认对Key进行排序,如果要对一个数据集进行排序,需要自定一个`key`对象,并且重载该对象的比较方法.
+
+具体步骤:
+
+* 定一个对象,继承`WritableComparable`接口
+
+  * 在接口中实现比较的方法`compareTo`
+    * 比较的方法返回:负整数、零或正整数=小于、等于或大于
+    * 比较方法中还可以定义多个排序,例如按照地区\年龄\进行排序
+
+* Map中返回key=定义对象,value=NullWritable
+
+  * value也可以定义成其他的.
+
+  
+
+### 如何取得每组中最大的数值?
+
+
+
+
+
+
+
 
 
 
@@ -198,4 +230,5 @@ HADOOP_HOME /opt/modules/apache/hadoop-2.9.2
 
 * [MapReduce — 数据分类输出和小文件合并](https://blog.csdn.net/qq_41851454/article/details/79620347)
 * [网友案例12篇](https://blog.csdn.net/jin6872115/article/category/7513962)
+* [MapReduce解密](https://www.cnblogs.com/leslies2/p/9009574.html)
 

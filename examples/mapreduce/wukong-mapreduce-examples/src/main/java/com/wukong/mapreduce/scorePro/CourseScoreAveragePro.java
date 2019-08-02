@@ -1,5 +1,6 @@
 package com.wukong.mapreduce.scorePro;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
@@ -10,6 +11,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -60,6 +62,14 @@ public class CourseScoreAveragePro {
     }
 
     public static void main(String[] args)throws Exception{
+
+
+        //提前删除输出目录
+        File outPutDir=new File(args[1]);
+        if(outPutDir.exists()){
+            FileUtils.deleteDirectory(outPutDir);
+        }
+
         Configuration conf=new Configuration();
         Job job=Job.getInstance(conf,"求每课的平均成绩");
 

@@ -27,7 +27,7 @@ public class SameFriendsMr {
             String files[] = inValue.toString().trim().split(":");
             String numbers[] = files[1].split(",");
 
-            for (int i = 0; i < numbers.length; i++) {
+            for (int i = 0; i < numbers.length-1; i++) {
                 for (int j = i + 1; j < numbers.length; j++) {
                     String outKeyStr = numbers[i] + "-" + numbers[j];
                     int c = numbers[i].compareTo(numbers[j]);

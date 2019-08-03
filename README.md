@@ -10,6 +10,7 @@
 * [Linxu基本操作](doc/linux.md)
 * [Hadoop简介](doc/hadoop-overview.md)
 * [Hadoop使用](doc/hadoop.md)
+  * [MapReduce例子](examples/mapreduce)
 
 
 

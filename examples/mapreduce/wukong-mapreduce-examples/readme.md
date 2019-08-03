@@ -1,4 +1,134 @@
-# 系列案例
+# MapReduce开发
+
+
+
+## 使用技巧
+
+
+
+### 如何与SQL语句进行映射?
+
+
+
+#### 使用SELECT获取数据
+
+最一般的用法
+
+
+
+#### 使用WHERE过滤数据
+
+应该在map中对数据进行过滤,然后再进行处理.
+
+使用`context.getConfiguration().getStrings`来进行过滤
+
+```java
+public static class MyMapper extends Mapper<LongWritable,Text,Text,IntWritable>{
+        private String area;
+        
+        @Override
+        public void setup(Context context){
+            this.area=context.getConfiguration().getStrings("area", "BeiJing")[0];
+        }
+        
+        public void map(LongWritable key,Text value,Context context)
+            throws IOException,InterruptedException{
+            String data=value.toString();
+            Phone iPhone=new Phone(data);
+            if(this.area.equals(iPhone.area))
+                context.write(new Text(iPhone.getType()), new IntWritable(iPhone.getCount()));
+        }
+ }
+```
+
+
+
+### 利用Partitioner进行分组
+
+可以定义多个reduce,然后根据数据的不同,执行多个reduce,最终按照分组输出`多个文件`
+
+例如有多个科目的成绩,可以利用partitioner进行分组
+
+
+
+### 利用 Combiner 提高系统性能
+
+在Map计算完毕,发送到Reduce前,提前进行一部分计算,来减少网络传输压力.
+
+Combiner 也继承于Reducer,在job中进行注册.
+
+
+
+### 自定义Key说明
+
+自定定义一个`Java对象`对象,来对数据文件中的一行数据进行封装.可以实现排序 分组等功能.
+
+> 有三个关键类:Writable、Comparable、WritableComparable
+
+* Writable定了write readFields 用来写或读数据流.
+* Comparable定义了compareTo方法用来做两个对象对比
+* WritableComparable集成了上述方法.
+
+
+
+### 数据分组与排序的方法
+
+####  RawComparator 实现数据排序
+
+既然可以通过自定义Key来进行排序,那么为啥还要使用`RawComparator`呢? 因为好多自定义Key是第三方,不能修改他们的源代码,所以要使用`RawComparator`进行二次封装.
+
+
+
+#### 利用 WritableComparator 实现数据排序
+
+
+
+#### 利用 WritableComparator 实现数据分组
+
+
+
+### 数据集连接处理方式介绍
+
+* Map 端连接查询
+  * 两个数据集中有一个非常小而另一个非常大时
+  * 利用 DistributeCache 做缓存处理,把较小的数据集加载到缓存
+* Reduce 端连接查询
+  * 当两个数据集中的数据都非常大时
+  * 可以设置不同的 Mapper 数据读入类，把连接键作为 Mapper 的输出键
+  * 设置 GroupingComparator 时按需要把连接键的属性作为分组处理的标识，这样就能确保两个数据集中相同连接键的数据会被同一个 reduce 方法处理。
+
+
+
+> Map端连接方法
+
+```java
+job.addCacheFile(new URI(args[2]));
+MyMapper.setup中
+URI[] uris=context.getCacheFiles();
+读到文件的名字,然后将文件的内容读取进来.
+
+```
+
+
+
+> Reduce一般比较复杂
+
+* 定义一个key :WritableComparable
+* 定义一个value :Writable
+* 定义一个排序组件SortComparator:WritableComparator
+* 定义一个分组组件GroupComparator:WritableComparator
+
+```java
+// 会定义两个Mapper,然后分别进行maper处理
+MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class,OrderMapper.class);
+MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class,SendMapper.class);
+```
+
+
+
+
+
+
 
 
 
@@ -6,7 +136,7 @@
 
 
 
-
+> 学生成绩统计
 
 | 数据文件           | 类名                         | 功能说明                                                     |
 | ------------------ | ---------------------------- | ------------------------------------------------------------ |
@@ -17,18 +147,31 @@
 | scorePro/score.txt | CourseScoreAverageProMult    | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`MultipleOutputs` |
 | scorePro/score.txt | CourseScoreAverageProPartion | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`Partitioner` |
 | scorePro/score.txt | CourseHighestScoreStudent    | 求每个科目中分数最高的学生,使用了分组工具                    |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
-|                    |                              |                                                              |
+|                    |                              |
+
+
+
+> 数据去重
+
+
+
+> 好友关联分析
+
+
+
+> 用户访问行为分析
+
+
+
+> 影评分析
+
+
+
+> 气象分析
+
+[MapReduce经典小案例：寻找每个月温度最高的两天](https://blog.csdn.net/weixin_44177758/article/details/89929224)
+
+
 
 
 
@@ -195,6 +338,8 @@
   
 
 ### 如何取得每组中最大的数值?
+
+
 
 
 

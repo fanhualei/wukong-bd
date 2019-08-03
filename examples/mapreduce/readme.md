@@ -14,5 +14,5 @@
 | ------------------------- | ---------------------------------------- | ---- |
 | hello                     | 一个简单的例子,用来说明如何编写MapReduce |      |
 | hadoop-mapreduce-examples | hadoop官方提供的例子                     |      |
-|                           |                                          |      |
+| wukong-mapreduce-examples | 展示了mapreduce常用功能的例子            |      |
 

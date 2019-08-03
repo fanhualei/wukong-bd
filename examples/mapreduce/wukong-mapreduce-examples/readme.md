@@ -2,6 +2,97 @@
 
 
 
+
+
+
+
+
+## 例子概述
+
+
+
+### 学生成绩统计
+
+| 数据文件           | 类名                         | 功能说明                                                     |
+| ------------------ | ---------------------------- | ------------------------------------------------------------ |
+| score/score.txt    | CourseScoreMaxMinAvg         | 求每个科目成绩的 最大值 最小值 平均值                        |
+| score/score.txt    | CourseScoreGrouping          | 统计科目中分数相同的人有多少,每个人的人名                    |
+| score/score.txt    | ScoreAverage                 | 统计学生的平均成绩                                           |
+| scorePro/score.txt | CourseScoreAveragePro        | 求每个课程的考试人数与平均成绩                               |
+| scorePro/score.txt | CourseScoreAverageProMult    | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`MultipleOutputs` |
+| scorePro/score.txt | CourseScoreAverageProPartion | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`Partitioner` |
+| scorePro/score.txt | CourseHighestScoreStudent    | 求每个科目中分数最高的学生,使用了分组工具                    |
+|                    |                              |
+
+
+
+### 数据去重
+
+
+
+| 数据文件              | 类名       | 功能说明 |
+| --------------------- | ---------- | -------- |
+| distinct/distinct.txt | DistinctMR | 程序去重 |
+
+
+
+### 好友关联分析
+
+在求共同好友的时候,进行多个reduce的关联
+
+| 数据文件            | 类名           | 功能说明            |
+| ------------------- | -------------- | ------------------- |
+| friends/friends.txt | SameFriendsMr  | 求共同好友-错误算法 |
+| friends/friends.txt | SameFriendsMr2 | 求共同好友          |
+| friends/friends.txt | EachFansMr     | 求相互粉丝的组合    |
+
+
+
+### 用户访问行为分析
+
+
+
+| 数据文件            | 类名            | 功能说明                     |
+| ------------------- | --------------- | ---------------------------- |
+| version/version.txt | VersionChangeMr | 版本变化分析                 |
+| pv/pv.txt           | PvTimesMr       | 各个时间段每个页面的访问次数 |
+|                     |                 |                              |
+
+
+
+#### 版本变化分析
+
+[参考文档](https://blog.csdn.net/jin6872115/article/details/79587948)
+
+* `WritableComparator`的作用与group类似
+  * 如果加上这个group,`reduce`内部的函数会被改变
+    * 当inValues每循环一次,Key就变化一次.
+    * 如果不做特殊处理,那么就只按照分组输出最大的数据.
+* `WritableComparable` 完成了排序与读取的功能
+
+
+
+#### 各个时间段每个页面的访问次数
+
+[参考文档](https://blog.csdn.net/jin6872115/article/details/79589746)
+
+将[页面+时间]作为`key`然后统计次数. 同时使用了`multipleOutputs`输出到不同的文件,感觉比参考文档中的方法好一点.
+
+
+
+
+
+### 影评分析
+
+
+
+### 气象分析
+
+[MapReduce经典小案例：寻找每个月温度最高的两天](https://blog.csdn.net/weixin_44177758/article/details/89929224)
+
+
+
+
 ## 使用技巧
 
 
@@ -130,52 +221,7 @@ MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class,SendMa
 
 
 
-
-
-## 例子概述
-
-
-
-> 学生成绩统计
-
-| 数据文件           | 类名                         | 功能说明                                                     |
-| ------------------ | ---------------------------- | ------------------------------------------------------------ |
-| score/score.txt    | CourseScoreMaxMinAvg         | 求每个科目成绩的 最大值 最小值 平均值                        |
-| score/score.txt    | CourseScoreGrouping          | 统计科目中分数相同的人有多少,每个人的人名                    |
-| score/score.txt    | ScoreAverage                 | 统计学生的平均成绩                                           |
-| scorePro/score.txt | CourseScoreAveragePro        | 求每个课程的考试人数与平均成绩                               |
-| scorePro/score.txt | CourseScoreAverageProMult    | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`MultipleOutputs` |
-| scorePro/score.txt | CourseScoreAverageProPartion | 将不同课程的成绩导出到不同的文件中,并将学生的成绩按照倒序进行排序.使用了`Partitioner` |
-| scorePro/score.txt | CourseHighestScoreStudent    | 求每个科目中分数最高的学生,使用了分组工具                    |
-|                    |                              |
-
-
-
-> 数据去重
-
-
-
-> 好友关联分析
-
-
-
-> 用户访问行为分析
-
-
-
-> 影评分析
-
-
-
-> 气象分析
-
-[MapReduce经典小案例：寻找每个月温度最高的两天](https://blog.csdn.net/weixin_44177758/article/details/89929224)
-
-
-
-
-
-## 程序思虑
+## 程序思路
 
 
 

@@ -1,4 +1,4 @@
-# Hive
+# Hive基础知识
 
 > 目录
 
@@ -254,6 +254,10 @@ $mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY 'Root@mysql-1';
 
 # 重新登录
 $ mysql -uroot -pRoot@mysql-1
+
+$mysql>set global validate_password.policy=0;
+$mysql>set global validate_password.length=3;
+$mysql>show global variables like '%validate_password%';
 # 退出mysql后
 
 # 设置mysql 启动后自动启动
@@ -327,7 +331,7 @@ $ systemctl enable mysql
 
 <property>
 <name>javax.jdo.option.ConnectionPassword</name>
-<value>Root@mysql-1</value>
+<value>root@mysql</value>
 </property>
 </configuration>
 

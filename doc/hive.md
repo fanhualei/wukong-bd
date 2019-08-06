@@ -1,5 +1,9 @@
 # Hive
 
+> 目录
+
+![alt](imgs/hive-menu.png)
+
 
 
 ## 一、ETL介绍
@@ -125,6 +129,12 @@ hive是基于Hadoop的一个[数据仓库](https://baike.baidu.com/item/数据�
 
 
 
+
+
+## 三、Hive的安装和基本使用
+
+
+
 ### 下载Hive 
 
 下载地址：https://hive.apache.org/downloads.html
@@ -206,6 +216,135 @@ $hive> show databases;
 
 
 
+### 改变Hive默认的数据库
+
+为什么要改变成mysql呢？ 因为默认的数据库不能多个client访问，否则会报错误。
+
+如果你嫌麻烦，不改变mysql也可以。
+
+#### 安装MySql
+
+在CentOS7中默认安装有MariaDB，这个是MySQL的分支，尽量安装官方的mysql
+
+> 安装
+
+```shell
+# 查看是否有msql 如果有就删除
+$ rpm -qa | grep mysql
+$ wget https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+$ yum install mysql80-community-release-el7-3.noarch.rpm
+$ yum -y install mysql-community-server
+```
+
+> 启动
+
+```shell
+$ service mysqld status
+$ service mysqld start
+$ service mysqld stop
+
+# 得到默认的密码 qg0hBFwD56-v
+$ grep 'temporary password' /var/log/mysqld.log
+
+# 一定要立即修改密码
+$ mysql -uroot -p
+
+# 设置新密码
+$mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY 'Root@mysql-1';
+
+# 重新登录
+$ mysql -uroot -pRoot@mysql-1
+# 退出mysql后
+
+# 设置mysql 启动后自动启动
+$ systemctl enable mysql
+```
+
+* [CentOS7安装MySQL](https://www.cnblogs.com/nicknailo/articles/8563737.html)
+
+
+
+> mysql安装的位置
+
+```shell
+
+# 执行命令的路径
+ /usr/sbin/mysqld
+ 
+# 文件存储路径 
+  /var/lib/mysql
+  
+# 配置文件
+ /etc/my.cnf
+```
+
+
+
+
+
+
+
+#### 改变Hive的配置
+
+> 下载jdbc
+
+由于hadoop使用的是1.7的jdk，所以需要查看那个jdbc适用这个版本。[具体参考官网](https://dev.mysql.com/doc/connector-j/5.1/en/connector-j-versions.html).
+
+去mysql的官网下载，例如`5.1版本`,然后解压的到`mysql-connector-java-5.1.48.jar`文件。
+
+将这个Jar文件，复制到hive/lib下
+
+
+
+> 配置：进入hive的conf目录
+
+```shell
+ $ cp hive-default.xml.template hive-site.xml
+ 
+```
+
+然后配置这个hive-site.xml文件
+
+这个版本的`useSSL=false`不好用，建议先忍着提示没有使用ssl吧。
+
+```xml-dtd
+<configuration>
+
+<property>
+<name>javax.jdo.option.ConnectionURL</name>
+<value>jdbc:mysql://127.0.0.1:3306/hive?createDatabaseIfNotExist=true</value>
+</property>
+
+<property>
+<name>javax.jdo.option.ConnectionDriverName</name>
+<value>com.mysql.jdbc.Driver</value>
+</property>
+
+<property>
+<name>javax.jdo.option.ConnectionUserName</name>
+<value>root</value>
+</property>
+
+<property>
+<name>javax.jdo.option.ConnectionPassword</name>
+<value>Root@mysql-1</value>
+</property>
+</configuration>
+
+```
+
+
+
+> 初始化mysql数据库
+
+```shell
+ $ bin/schematool -dbType mysql -initSchema
+```
+
+[官方文档](https://cwiki.apache.org/confluence/display/Hive/AdminManual+Metastore+Administration)
+
+
+
 
 
 ### 运行Hive
@@ -216,8 +355,193 @@ $hive> show databases;
 $ hive
 $hive> create database wukong;
 $hive> use wukong;
-$hive> use wukong;
+
 ```
+
+
+
+### 通过Hive操纵数据
+
+#### 创建表追加数据
+
+```shell
+$ hive
+$hive> show databases;
+$hive> use wukong;
+
+# 创建表并指定分隔符
+$hive> create table test(id int,name varchar(20)) ROW FORMAT DELIMITED FIELDS TERMINATED BY "\t";
+$hive> show tables;
+
+# 加载数据
+$hive> load data local inpath '/opt/datas/test' into table test;
+
+# 显示表中的内容
+$hive> select * from test;
+
+```
+
+
+
+> test 数据文件，默认分隔符是ctrl+V  ctrl+A
+
+```
+1	aaa
+2	bbb
+```
+
+
+
+#### 查看表的信息
+
+```shell
+# 显示表中的内容
+$hive> desc test;
+
+$hive> desc extended test;
+
+# 下面这个命令显示的最全
+$hive> desc formatted test;
+```
+
+
+
+#### 修改表
+
+中文注释无法显示
+
+```shell
+# 改变表名字
+$hive> alter table test rename to newtest;
+
+# 添加字段与注释
+$hive> alter table newtest add columns(age int comment 'this is age 年龄');
+
+# 修改列名称与类型
+$hive> alter table newtest change age newage string;
+
+# 调整列的位置 这个语句在某些版本下无法执行，请删除after name
+$hive> alter table newtest change  newage age string after name;
+```
+
+
+
+#### 清空表数据
+
+```shell
+$hive> truncate table newtest;
+
+# 加上 cascade 可以请制将有数据的表给删除了
+$hive> drop table newtest;
+```
+
+
+
+#### 查看hive自带函数
+
+```shell
+$hive> show functions;
+
+$hive> desc function extended  year;
+```
+
+
+
+### Hive 常用操作
+
+
+
+#### 日志处理
+
+* 将conf/目录下的 hive-log4j2.properties.template 复制成hive-log4j2.properties，然后修改到
+
+```text
+# property.hive.log.dir = ${sys:java.io.tmpdir}/${sys:user.name}
+property.hive.log.dir = /opt/modules/apache/hive-2.3.5/logs
+
+```
+
+
+
+
+
+#### 显示当前数据信息
+
+当使用use wukong时，可以在命令符前显示当前数据库名称
+
+* hive-site.xml
+
+```xml
+  <property>
+    <name>hive.cli.print.current.db</name>
+    <value>true</value>
+    <description>Whether to include the current database in the Hive prompt.</description>
+  </property>
+
+```
+
+
+
+#### 显示当前列名
+
+```xml
+  <property>
+    <name>hive.cli.print.header</name>
+    <value>true</value>
+    <description>Whether to print the names of the columns in query output.</description>
+  </property>
+
+```
+
+
+
+
+
+
+
+#### hive命令
+
+```shell
+$ bin/hive -help
+
+# 默认登录到那个数据
+$ bin/hive -database databesName
+
+# 执行某个sql
+$ bin/hive -e 'select * from wukong.test'
+
+# 执行某个sql语句
+$ bin/hive -f /opt/datas/test.sql
+
+# 将一个查询的结果重定向到本地的文件,这时候导出的是带表头的，如果要关闭表头，见上一章节。
+$ bin/hive -f /opt/datas/test.sql >> /opt/datas/hive.txt
+
+```
+
+> test.sql
+
+```sql
+select * from wukong.test
+```
+
+
+
+#### 定义Database的存储位置
+
+不想使用默认的hdfs路径了，可以自定义. location后面跟的是路径
+
+`create database dbname location "/hive_test" `
+
+
+
+#### 常用shell命令
+
+* ！
+  * 表示可以访问Linux文件系统
+  * ! ls /opt/datas;
+* dfs
+  * 表示可以访问分布式系统
+  * dfs -ls /;
 
 
 

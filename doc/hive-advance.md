@@ -1,6 +1,6 @@
 # Hive高级功能
 
-
+[TOC]
 
 
 
@@ -238,7 +238,7 @@ select * from test limit 100;
 
 
 
-### 常用hsql语句
+### 常用查询用法
 
 
 
@@ -274,6 +274,241 @@ select * from test limit 100;
 
 
 
+> 多表查询的优化
+
+大表与小表关联，将小表加载到内存中中，大表在map读入阶段直接读入数据，然后输出结果
+
+* [Hive Multiple MapJoin优化](https://www.jianshu.com/p/6415d6664839)
+
+两阶段聚合
+
+* [两阶段聚合（局部聚合+全局聚合）解决groupby产生数据倾斜的简单案例](https://blog.csdn.net/yu0_zhang0/article/details/81131888)
+
+
+
+> 推荐文章
+
+[Hive学习之路 （二十一）Hive 优化策略](https://www.cnblogs.com/qingyunzong/p/8847775.html)
+
+
+
+#### 其他常用函数
+
+[Hive常用函数大全一览](https://www.cnblogs.com/yuejiaming/p/10572358.html)
+
+
+
+#### 窗口函数
+
+窗口指一个数据范围
+
+[hive 窗口函数，分析函数的一些理解](https://blog.csdn.net/kuodannie1668/article/details/79757186)
+
+```sql
+select * ,max(sal) over(partition by deptno order by sql desc) from emp;
+
+/* 窗口函数的完整写法，与前面的 这个代码是示意，并不能执行 */  
+select * ,max(sal) over(partition by deptno order by sql desc range between unbounded preceding and current row) from emp;
+```
+
+
+
+例子：
+
+* 当有人访问了taobao.com，在他访问taobao.com 前5分钟 后10分钟 ，有没有访问支付宝
+
+  ```sql
+  select * ,
+  	count(if(url='支付宝',1,null)) 
+  	over (partition userid order ts Range between 300 PRECEDING and current row ) as tmp1, 
+  	from X
+  	where tmp1>0
+  ```
+
+  
+
+
+
+#### 排序优化
+
+[Hive_Hive 排序及优化 ORDER BY, SORT BY, DISTRIBUTE BY, CLUSTER BY](https://blog.csdn.net/u010003835/article/details/80938339)
+
+* Hive 中的 ORDER BY 与其不足
+
+* Hive 中的 SORT BY，DISTRIBUTE BY
+
+* Hive 中的CLUSTER BY 与其不足
+
+
+
+#### 自定义函数
+
+用途不大，一边常用的函数hive都实现了。
+
+* udf
+  * 用户定义的格式化函数
+  * 一条输入，一条输出
+* udaf
+  * 多条输入，一条输出
+  * 用户自定义聚合函数
+* udtf
+  * 一条输入多条输出
+  * 行转列
+
+
+
+#### hiveservice2服务
+
+这个优势，可与多人使用，可以进行权限认证，可以跨机器访问
+
+更多细节，可以在网上搜索hiveservice2
+
+##### 开启与关闭
+
+```shell
+$ bin/hiveserver2
+
+# 开启beeline
+
+$ bin/beeline
+$bbline> !connect jdbc:hive2://ip.class:10000
+```
+
+
+
+##### metastore服务
+
+减少mysql连接， 保护msql的安全
+
+![alt](imgs/hive-metastore.png)
+
+
+
+```shell
+# 开启metastre 服务
+bin/hive --service metastre &
+```
+
+
+
+
+
+[*hive*Server2 和 *metastore*的一点解读。 - aj117 - 博客园](https://www.baidu.com/link?url=Yp1rXjy4cFt64iwtdBFbpJEM_f0TBN3mt8eQbOSZolynrkhdyLLGzPaFoyw5Khli7KspqWHoqasuxdGttlwXP_&wd=&eqid=8765d9db00053d35000000025d4b9d97)
+
+
+
+
+
+#### Struct，Map和Array
+
+[Hive中集合数据类型Struct，Map和Array](https://blog.csdn.net/u014414323/article/details/83616361) 
+
+建立一个表
+
+```sql
+create table if not exists jihetable(
+ id string,
+ area array<string>,
+ province map<int,string>,
+ city struct<name:string,city:string,type:int>
+)
+row format delimited fields terminated by '\t'
+collection items terminated by ','
+map keys terminated by ':'
+stored as textfile;
+```
+
+
+
+添加数据
+
+```
+A	华东，华北，华西	1:北京，2:天津，3:河南	小明,郑州,3
+```
+
+
+
+#### java连接hiveserver2
+
+例子代码，在开发过程用的不多
+
+```java
+public class Hiveserver2Test{
+
+    private static String driverName = "org.apache.hive.jdbc.HiveDriver";
+    private static String url = "jdbc:hive2://172.19.224.213:10000/xavierdb";
+
+    private static Connection con = null;
+    private static Statement state = null;
+    private static ResultSet res = null;
+
+    //加载驱动,创建连接
+    @Before
+    public void init() throws ClassNotFoundException, SQLException {
+        Class.forName(driverName);
+        con = DriverManager.getConnection(url, "hive", "hive");
+        state = con.createStatement();
+    }
+    
+    //创建数据库
+    @Test
+    public void CreateDb() throws SQLException {
+
+        state.execute("create database xavierdb1");
+
+    }
+    // 查询数据
+    @Test
+    public void selectTab() throws SQLException {
+        res = state.executeQuery("select * from student1");
+        while (res.next()) {
+            System.out.println(
+                    res.getString(1) + "-" +
+                            res.getString(2) + "-" +
+                            res.getString(3) + "-" +
+                            res.getString(4));
+        }
+    }
+
+    // 统计查询（会运行mapreduce作业，资源开销较大）
+    @Test
+    public void countData() throws SQLException {
+        res = state.executeQuery("select count(1) from student");
+        while (res.next()) {
+            System.out.println(res.getInt(1));
+        }
+    }
+    
+    // 查询所有数据库
+    @Test
+    public void showtDb() throws SQLException {
+        res = state.executeQuery("show databases");
+        while (res.next()) {
+            System.out.println(res.getString(1));
+        }
+    }
+    
+        // 释放资源
+    @After
+    public void destory() throws SQLException {
+        if (res != null) state.close();
+        if (state != null) state.close();
+        if (con != null) con.close();
+    }
+
+
+
+}
+```
+
+
+
+[用Java代码通过JDBC连接Hiveserver2](https://www.cnblogs.com/xavier-xd/p/10399581.html)
+
+
+
+
+
 
 
 
@@ -293,36 +528,127 @@ select * from test limit 100;
 emp.txt
 
 ```
-7369    SMITH   CLERK   7902    1980-12-17      800.0   NULL    20
-7499    ALLEN   SALESMAN        7698    1981-2-20       1600.0  300.0   30
-7521    WARD    SALESMAN        7698    1981-2-22       1250.0  500.0   30
-7566    JONES   MANAGER 7839    1981-4-2        2975.0  NULL    20
-7654    MARTIN  SALESMAN        7698    1981-9-28       1250.0  1400.0  30
-7698    BLAKE   MANAGER 7839    1981-5-1        2850.0  NULL    30
-7782    CLARK   MANAGER 7839    1981-6-9        2450.0  NULL    10
-7788    SCOTT   ANALYST 7566    1987-4-19       3000.0  NULL    20
-7839    KING    PRESIDENT       NULL    1981-11-17      5000.0  NULL    10
-7844    TURNER  SALESMAN        7698    1981-9-8        1500.0  0.0     30
-7876    ADAMS   CLERK   7788    1987-5-23       1100.0  NULL    20
-7900    JAMES   CLERK   7698    1981-12-3       950.0   NULL    30
-7902    FORD    ANALYST 7566    1981-12-3       3000.0  NULL    20
-7934    MILLER  CLERK   7782    1982-1-23       1300.0  NULL    10
+7369,SMITH,CLERK,7902,1980-12-17,800.0,NULL,20
+7499,ALLEN,SALESMAN,7698,1981-2-20,1600.0,300.0,30
+7521,WARD,SALESMAN,7698,1981-2-22,1250.0,500.0,30
+7566,JONES,MANAGER,7839,1981-4-2,2975.0,NULL,20
+7654,MARTIN,SALESMAN,7698,1981-9-28,1250.0,1400.0,30
+7698,BLAKE,MANAGER,7839,1981-5-1,2850.0,NULL,30
+7782,CLARK,MANAGER,7839,1981-6-9,2450.0,NULL,10
+7788,SCOTT,ANALYST,7566,1987-4-19,3000.0,NULL,20
+7839,KING,PRESIDENT,NULL,1981-11-17,5000.0,NULL,10
+7844,TURNER,SALESMAN,7698,1981-9-8,1500.0,0.0,30
+7876,ADAMS,CLERK,7788,1987-5-23,1100.0,NULL,20
+7900,JAMES,CLERK,7698,1981-12-3,950.0,NULL,30
+7902,FORD,ANALYST,7566,1981-12-3,3000.0,NULL,20
+7934,MILLER,CLERK,7782,1982-1-23,1300.0,NULL,10
 ```
 
 dept.txt
 
 ```
-10      ACCOUNTING      NEW YORK
-20      RESEARCH        DALLAS
-30      SALES   CHICAGO
-40      OPERATIONS      BOSTON
+10,ACCOUNTING,NEWYORK
+20,RESEARCH,DALLAS
+30,SALES,CHICAGO
+40,OPERATIONS,BOSTON
 ```
 
 
 
 #### 2：建立表并上传数据
 
+```sql
+create table IF NOT EXISTS emp(
+empno int,
+ename string,
+job string,
+mgr int,
+hiredate string,
+sal double,
+comm double,
+deptno int
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
 
+load data local inpath '/opt/datas/emp.txt' overwrite into table emp;
+
+
+create table IF NOT EXISTS dept(
+deptno int,
+dname string,
+loc string
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
+
+
+
+load data local inpath '/opt/datas/dept.txt' overwrite into table dept ;
+```
+
+
+
+
+
+
+
+#### 3：具体分析
+
+[几种保存Hive查询结果的方法](https://www.cnblogs.com/fstimers/p/10858854.html)
+
+##### 需求1
+
+查询所有部门员工信息，按照薪资降薪排序，同时显示本部门的最高薪水与最低薪水
+
+```sql
+Select deptno,empno,ename,sal,max(sal) over(partition by deptno) maxSal,min(sal) over(partition by deptno) minSal from emp order by deptno,sal;
+```
+
+![alt](imgs/hive-sql-result.png)
+
+
+
+##### 需求2
+
+以部门分组计算薪资在整个部门中的比例
+
+```sql
+Select deptno,empno,ename,sal,sum(sal) over(partition by deptno) sumSal,round(sal/sum(sal) over(partition by deptno),2) rate from emp order by deptno,sal
+```
+
+
+
+##### 需求3
+
+以部门分组按薪资排序
+
+```sql
+select deptno,empno,ename,sal,row_number() over(partition by deptno order by sal desc) rn,deptno from emp;
+```
+
+
+
+##### 需求4
+
+实现分组取每组的前三条记录.
+
+`DENSE_RANK`可以取到并列的前三名。`,RANK() ` 不取并列的。
+
+```sql
+select 
+t.empno,t.ename,t.sal,t.deptno,t.rnk 
+from( 
+select empno,ename,sal,deptno,DENSE_RANK() OVER (PARTITION BY deptno ORDER BY sal DESC ) as rnk from emp 
+) t 
+where 
+t.rnk<=3；
+```
+
+
+
+
+
+
+![alt](imgs/hive-sql-result-top3.png)
 
 
 

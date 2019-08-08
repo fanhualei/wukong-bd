@@ -349,6 +349,24 @@ $ systemctl enable mysql
 
 
 
+#### 优化Hive
+
+> 内存溢出
+
+If use JDK7, append following in conf/hive-env.sh:
+
+```
+export HADOOP_OPTS="$HADOOP_OPTS -XX:MaxPermSize=128m"
+```
+
+If use JDK8, append following in Conf/hive-env.sh:
+
+```
+export HADOOP_OPTS="$HADOOP_OPTS -XX:MaxMetaspaceSize=512m"
+```
+
+
+
 
 
 ### 运行Hive

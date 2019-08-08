@@ -25,3 +25,4 @@
   * [Hive的安装和基本使用](doc/hive.md#hive的安装和基本使用)
 
 * [Sqoop](doc/sqoop.md)
+

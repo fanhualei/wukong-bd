@@ -2,7 +2,13 @@
 
 
 
-## Sqoop简介
+[TOC]
+
+
+
+
+
+## 简介
 
 sqoop是数据交换的工具，底层使用MapReduce工具。
 
@@ -21,7 +27,7 @@ sqoop是数据交换的工具，底层使用MapReduce工具。
 
 
 
-## Sqoop安装
+## 安装
 
 
 
@@ -33,9 +39,9 @@ sqoop是数据交换的工具，底层使用MapReduce工具。
 Latest stable release is 1.4.7 (download, documentation). Latest cut of Sqoop2 is 1.99.7 (download, documentation). Note that 1.99.7 is not compatible with 1.4.7 and not feature complete, it is not intended for production deployment.
 ```
 
-下载：`sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz`
+#### 下载并解压
 
-
+`sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz`
 
 ```shell
 $ cd /opt/modules/apache/
@@ -47,7 +53,7 @@ $ cp sqoop-env-template.sh sqoop-env.sh
 
 
 
-> 修改sqoop-env.sh
+#### 修改sqoop-env.sh
 
 ```
 export HADOOP_HOME=/opt/modules/apache/hadoop-2.9.2
@@ -56,7 +62,7 @@ export HIVE_HOME=/opt/modules/apache/hive-2.3.5
 
 
 
-> 复制mysql.jar
+#### 复制mysql.jar
 
 mysql 驱动包到 sqoop1.4.6/lib 目录下
 
@@ -66,7 +72,7 @@ cp /media/sf_share/mysql-connector-java-5.1.48.jar ./lib
 
 
 
-> 修改系统参数
+#### 修改系统参数
 
 ```
 vi ~/.bashrc
@@ -88,7 +94,7 @@ export PATH=$PATH:$SQOOP_HOME/bin
 
 ### 测试
 
-> 进入mysql
+#### 进入mysql
 
 ```shell
  $ mysql -uroot -proot@mysql
@@ -102,7 +108,7 @@ $ bin/sqoop -version
 
 ```
 
-> 显示数据库
+#### 显示数据库
 
 ```shell
 sqoop list-databases \
@@ -113,7 +119,7 @@ sqoop list-databases \
 
 
 
-> 显示表
+#### 显示表
 
 ```shell
 sqoop list-tables \
@@ -124,7 +130,7 @@ sqoop list-tables \
 
 
 
-## Sqoop使用
+## 使用
 
 
 
@@ -249,3 +255,5 @@ sqoop import   \
 * [sqoop知识整理](https://my.oschina.net/jiansin/blog/1803038)
 * [Sqoop最佳实践](https://www.jianshu.com/p/be33f4b5c62e)
 * [sqoop简介及sqoop1与sqoop2区别](https://blog.csdn.net/lilychen1983/article/details/80241368)
+* 案例
+  * [Sqoop学习](https://www.jianshu.com/p/9ee76314eac1)

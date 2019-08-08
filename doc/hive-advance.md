@@ -515,6 +515,12 @@ public class Hiveserver2Test{
 
 ## hive案例
 
+案例参考网址
+
+* [老铁Hive](https://www.cnblogs.com/qingyunzong/category/1191578.html)
+
+
+
 
 
 ### 案例1：部门职位
@@ -651,6 +657,162 @@ t.rnk<=3；
 ![alt](imgs/hive-sql-result-top3.png)
 
 
+
+
+
+
+
+### 案例2：窗口函数
+
+
+
+#### SUM,AVG,MIN,MAX
+
+[Hive学习之路 （十三）Hive分析窗口函数(一) SUM,AVG,MIN,MAX](https://www.cnblogs.com/qingyunzong/p/8782794.html)
+
+```sql
+select 
+   cookieid, 
+   createtime, 
+   pv, 
+   sum(pv) over (partition by cookieid order by createtime rows between unbounded preceding and current row) as pv1, 
+   sum(pv) over (partition by cookieid order by createtime) as pv2, 
+   sum(pv) over (partition by cookieid ) as pv3, 
+   sum(pv) over (partition by cookieid order by createtime rows between 3 preceding and current row) as pv4, 
+   sum(pv) over (partition by cookieid order by createtime rows between 3 preceding and 1 following) as pv5, 
+   sum(pv) over (partition by cookieid order by createtime rows between current row and unbounded following) as pv6 
+from cookie1;
+```
+
+
+
+```
+pv1: 分组内从起点到当前行的pv累积，如，11号的pv1=10号的pv+11号的pv, 12号=10号+11号+12号
+pv2: 同pv1
+pv3: 分组内(cookie1)所有的pv累加
+pv4: 分组内当前行+往前3行，如，11号=10号+11号， 12号=10号+11号+12号， 13号=10号+11号+12号+13号， 14号=11号+12号+13号+14号
+pv5: 分组内当前行+往前3行+往后1行，如，14号=11号+12号+13号+14号+15号=5+7+3+2+4=21
+pv6: 分组内当前行+往后所有行，如，13号=13号+14号+15号+16号=3+2+4+4=13，14号=14号+15号+16号=2+4+4=10
+```
+
+如果不指定ROWS BETWEEN,默认为从起点到当前行;
+如果不指定ORDER BY，则将分组内所有值累加;
+关键是理解ROWS BETWEEN含义,也叫做WINDOW子句：
+PRECEDING：往前
+FOLLOWING：往后
+CURRENT ROW：当前行
+UNBOUNDED：起点，
+
+　　UNBOUNDED PRECEDING 表示从前面的起点，
+
+　　UNBOUNDED FOLLOWING：表示到后面的终点
+–其他AVG，MIN，MAX，和SUM用法一样。	
+
+
+
+![alt](imgs/hive-window-sum.png)
+
+
+
+#### NTILE,ROW_NUMBER,RANK,DENSE_RANK
+
+
+
+[Hive学习之路 （十四）Hive分析窗口函数(二) NTILE,ROW_NUMBER,RANK,DENSE_RANK](https://www.cnblogs.com/qingyunzong/p/8798102.html)
+
+> 数据
+
+```
+cookie1,2015-04-10,1
+cookie1,2015-04-11,5
+cookie1,2015-04-12,7
+cookie1,2015-04-13,3
+cookie1,2015-04-14,2
+cookie1,2015-04-15,4
+cookie1,2015-04-16,4
+cookie2,2015-04-10,2
+cookie2,2015-04-11,3
+cookie2,2015-04-12,5
+cookie2,2015-04-13,6
+cookie2,2015-04-14,3
+cookie2,2015-04-15,9
+cookie2,2015-04-16,7
+```
+
+> 表
+
+```sql
+create table cookie2(cookieid string, createtime string, pv int) row format delimited fields terminated by ',';
+load data local inpath "/home/hadoop/cookie2.txt" into table cookie2;
+```
+
+
+
+
+##### NTIL
+
+例如我们关心全公司前三分之一部分的数据，只需选择 ALL_CMP = 1 的数据就可以了
+    如果只是关心全公司中间的三分之一数据，只需选择 ALL_CMP = 2 的数据就可以了
+
+比如，统计一个cookie，pv数最多的前1/3的天
+
+```
+select
+  cookieid,
+  createtime,
+  pv,
+  ntile(3) over (partition by cookieid order by pv desc ) as rn 
+from cookie.cookie2;
+```
+
+![alt](imgs/hive-window-NTIL.png)
+
+
+
+##### ROW_NUMBER
+
+ROW_NUMBER() –从1开始，按照顺序，生成分组内记录的序列
+–比如，按照pv降序排列，生成分组内每天的pv名次
+ROW_NUMBER() 的应用场景非常多，再比如，获取分组内排序第一的记录;获取一个session中的第一条refer等。
+
+-- 所以如果需要取每一组的前3名，只需要rn<=3即可，适合TopN
+
+```sql
+select
+  cookieid,
+  createtime,
+  pv,
+  row_number() over (partition by cookieid order by pv desc) as rn
+from cookie.cookie2;
+```
+
+mysql8中也实现了类似的窗口函数
+
+![alt](imgs/hive-window-ROW_NUMBER.png)
+
+
+
+
+
+##### RANK 和 DENSE_RANK
+
+```sql
+select
+  cookieid,
+  createtime,
+  pv,
+  rank() over (partition by cookieid order by pv desc) as rn1,
+  dense_rank() over (partition by cookieid order by pv desc) as rn2,
+  row_number() over (partition by cookieid order by pv desc) as rn3
+from cookie.cookie2 
+where cookieid='cookie1';
+```
+
+**row_number**： 按顺序编号，不留空位
+**rank**： 按顺序编号，相同的值编相同号，留空位
+**dense_rank**： 按顺序编号，相同的值编相同的号，不留空位
+
+![alt](imgs/hive-window-rank.png)
 
 
 

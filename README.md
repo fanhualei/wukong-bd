@@ -23,6 +23,6 @@
   * [ETL介绍](doc/hive.md#etl介绍)
   * [Hive介绍](doc/hive.md#hive介绍)
   * [Hive的安装和基本使用](doc/hive.md#hive的安装和基本使用)
-
 * [Sqoop](doc/sqoop.md)
+* [Hbase](doc/hbase.md)
 

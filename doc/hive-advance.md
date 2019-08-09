@@ -509,6 +509,42 @@ public class Hiveserver2Test{
 
 
 
+## 数据倾斜
+
+[Hive学习之路 （十九）Hive的数据倾斜](https://www.cnblogs.com/qingyunzong/p/8847597.html)
+
+[Hive学习之路 （二十一）Hive 优化策略](https://www.cnblogs.com/qingyunzong/p/8847775.html)
+
+
+
+
+
+## Hive调用Py脚本
+
+[Hive调用python脚本实现数据清洗、统计过程](https://blog.csdn.net/isyslab/article/details/80365894)
+
+
+
+
+
+## 辅助功能
+
+
+
+### Hive自带的日期函数
+
+
+
+### case when函数
+
+
+
+### hive压缩
+
+先用load命令将数据导入到一个原始表中，然后通过insert into 到一个压缩表中。
+
+
+
 
 
 
@@ -664,6 +700,41 @@ t.rnk<=3；
 
 ### 案例2：窗口函数
 
+常见的统计函数
+
+在详细列表中追加一列或几列字段，用来显示汇总信息。
+
+> 汇总函数
+
+* 显示小学一年级5个班的语文成绩，并且追加一列（班级的平均成绩）
+  * 追加的一列也可以
+    * 班级的最高成绩
+    * 班级的最低成绩
+    * 班级的合计成绩
+    * 按照年级的成绩
+  * 高级一点的统计
+    * 班级前三名的平均成绩
+
+
+
+> 分区函数
+
+* 将一个班的学生成绩按照从高到低，分成n部分，并显示每部分的学生成绩的详细
+* 将一个班的学生成绩按照从高到低排序，
+  * 并追加一个列，显示学生所在的名次
+  * 如果有分数相同的学生，那么就并列第几名，但是后续的名次不连续
+  * 如果有分数相同的学生，那么就并列第几名，但是后续的名次连续
+
+
+
+> 多维度统计
+
+* 在一个表中，统计一年每月出勤人数与每天统计的人数
+
+
+
+
+
 
 
 #### SUM,AVG,MIN,MAX
@@ -813,6 +884,178 @@ where cookieid='cookie1';
 **dense_rank**： 按顺序编号，相同的值编相同的号，不留空位
 
 ![alt](imgs/hive-window-rank.png)
+
+
+
+##### LAG、LEAD、FIRST_VALUE和LAST_VALUE
+
+[Hive学习之路 （十六）Hive分析窗口函数(四) LAG、LEAD、FIRST_VALUE和LAST_VALUE](https://www.cnblogs.com/qingyunzong/p/8798606.html)
+
+数据
+
+```
+cookie1,2015-04-10 10:00:02,url2
+cookie1,2015-04-10 10:00:00,url1
+cookie1,2015-04-10 10:03:04,1url3
+cookie1,2015-04-10 10:50:05,url6
+cookie1,2015-04-10 11:00:00,url7
+cookie1,2015-04-10 10:10:00,url4
+cookie1,2015-04-10 10:50:01,url5
+cookie2,2015-04-10 10:00:02,url22
+cookie2,2015-04-10 10:00:00,url11
+cookie2,2015-04-10 10:03:04,1url33
+cookie2,2015-04-10 10:50:05,url66
+cookie2,2015-04-10 11:00:00,url77
+cookie2,2015-04-10 10:10:00,url44
+cookie2,2015-04-10 10:50:01,url55
+```
+
+###### LAG
+
+LAG(col,n,DEFAULT) 用于统计窗口内往上第n行值
+
+```sql
+select 
+  cookieid, 
+  createtime, 
+  url, 
+  row_number() over (partition by cookieid order by createtime) as rn, 
+  LAG(createtime,1,'1970-01-01 00:00:00') over (partition by cookieid order by createtime) as last_1_time, 
+  LAG(createtime,2) over (partition by cookieid order by createtime) as last_2_time 
+from cookie.cookie4;
+```
+
+![alt](imgs/hive-window-lag.png)
+
+
+
+###### LEAD
+
+LEAD(col,n,DEFAULT) 用于统计窗口内往下第n行值
+
+
+
+###### FIRST_VALUE
+
+取分组内排序后，截止到当前行，第一个值
+
+###### LAST_VALUE
+
+取分组内排序后，截止到当前行，最后一个值
+
+
+
+##### GROUPING SETS、GROUPING__ID、CUBE和ROLLUP
+
+[Hive学习之路 （十七）Hive分析窗口函数(五) GROUPING SETS、GROUPING__ID、CUBE和ROLLUP](https://www.cnblogs.com/qingyunzong/p/8798987.html)
+
+
+
+GROUPING SETS,GROUPING__ID,CUBE,ROLLUP
+
+这几个分析函数通常用于OLAP中，不能累加，而且需要根据不同维度上钻和下钻的指标统计，比如，分小时、天、月的UV数。
+
+```
+2015-03,2015-03-10,cookie1
+2015-03,2015-03-10,cookie5
+2015-03,2015-03-12,cookie7
+2015-04,2015-04-12,cookie3
+2015-04,2015-04-13,cookie2
+2015-04,2015-04-13,cookie4
+2015-04,2015-04-16,cookie4
+2015-03,2015-03-10,cookie2
+2015-03,2015-03-10,cookie3
+2015-04,2015-04-12,cookie5
+2015-04,2015-04-13,cookie6
+2015-04,2015-04-15,cookie3
+2015-04,2015-04-15,cookie2
+2015-04,2015-04-16,cookie1
+```
+
+
+
+
+
+###### GROUPING SETS和GROUPING__ID
+
+在一个GROUP BY查询中，根据不同的维度组合进行聚合，等价于将不同维度的GROUP BY结果集进行UNION ALL
+
+**GROUPING__ID**，表示结果属于哪一个分组集合。
+
+```sql
+select 
+  month,
+  day,
+  count(distinct cookieid) as uv,
+  GROUPING__ID
+from cookie.cookie5 
+group by month,day 
+grouping sets (month,day) 
+order by GROUPING__ID;
+```
+
+等价
+
+```sql
+SELECT month,NULL,COUNT(DISTINCT cookieid) AS uv,1 AS GROUPING__ID FROM cookie5 GROUP BY month 
+UNION ALL 
+SELECT NULL,day,COUNT(DISTINCT cookieid) AS uv,2 AS GROUPING__ID FROM cookie5 GROUP BY day
+```
+
+![alt](imgs/hive-window-group.png)
+
+
+
+##### CUBE立方体
+
+根据GROUP BY的维度的所有组合进行聚合
+
+```sql
+SELECT  month, day,
+COUNT(DISTINCT cookieid) AS uv,
+GROUPING__ID 
+FROM cookie5 
+GROUP BY month,day 
+WITH CUBE 
+ORDER BY GROUPING__ID;
+```
+
+等价于
+
+```sql
+SELECT NULL,NULL,COUNT(DISTINCT cookieid) AS uv,0 AS GROUPING__ID FROM cookie5
+UNION ALL 
+SELECT month,NULL,COUNT(DISTINCT cookieid) AS uv,1 AS GROUPING__ID FROM cookie5 GROUP BY month 
+UNION ALL 
+SELECT NULL,day,COUNT(DISTINCT cookieid) AS uv,2 AS GROUPING__ID FROM cookie5 GROUP BY day
+UNION ALL 
+SELECT month,day,COUNT(DISTINCT cookieid) AS uv,3 AS GROUPING__ID FROM cookie5 GROUP BY month,day
+```
+
+
+
+##### ROLLUP向上归纳
+
+是CUBE的子集，以最左侧的维度为主，从该维度进行层级聚合
+
+```sql
+SELECT  month, day, COUNT(DISTINCT cookieid) AS uv, GROUPING__ID  
+FROM cookie5 
+GROUP BY month,day WITH ROLLUP  ORDER BY GROUPING__ID;
+```
+
+可以实现这样的上钻过程：
+月天的UV->月的UV->总UV
+
+![alt](imgs/hive-window-rollup.png)
+
+
+
+#### 案例3:影评案例
+
+[Hive学习之路 （十二）Hive SQL练习之影评案例](https://www.cnblogs.com/qingyunzong/p/8727264.html)
+
+数据在Datas目录中
 
 
 

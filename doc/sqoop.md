@@ -130,7 +130,7 @@ sqoop list-tables \
 
 
 
-## 使用
+## 导入
 
 
 
@@ -241,6 +241,16 @@ sqoop import   \
 ### 导入到HIVE
 
 先导入到hdfs，然后再导入到hive
+
+
+
+## 导出
+
+
+
+### 导出到Mysql
+
+
 
 
 

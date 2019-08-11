@@ -178,7 +178,7 @@ $ cat output/*
 
 ##### 修改配置文件
 
-etc/hadoop/core-site.xml:
+> etc/hadoop/core-site.xml:
 
 ```xml
 <configuration>
@@ -189,7 +189,34 @@ etc/hadoop/core-site.xml:
 </configuration>
 ```
 
-etc/hadoop/hdfs-site.xml:
+注：这里要配置临时文件
+
+```xml
+ <property>
+  <name>hadoop.tmp.dir</name>
+  <value>file:/opt/modules/apache/hadoop-2.9.2/tmp</value>
+  <description>Abasefor other temporary directories.</description>
+ </property>
+```
+
+我按照官方文档没有配置tmp目录，后来有一次启动hadoop发现进入了安全模式。我怀疑是tmp目录的问题。
+
+当然可以使用这个方式离开安全模式，但是为了不再出现这个问题，我决定把路径给修改了。如果修改了tmp是否需要重新格式化呢？ 另外原先的文件还有保存吗？
+
+```shell
+# 离开安全模式的方法
+./hdfs dfsadmin -safemode leave
+```
+
+
+
+
+
+
+
+
+
+>  etc/hadoop/hdfs-site.xml:
 
 ```xml
 <configuration>

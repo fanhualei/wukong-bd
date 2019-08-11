@@ -627,6 +627,26 @@ ZooKeeper 3.4.x是必需的。
 
 ### 2.3. 伪分布模式的安装
 
+**需要修改的文件**
+
+* hbase-env.sh
+* hbase-site.xml
+* reginservers
+
+fanhl@189.cn
+
+* 配置JDK路径
+* 配置数据存储位置，指定HDFS路径
+* 指定分布式模式
+* 配置zookeeper(可配合自己的zookeeper)
+  * 也可以使用默认的 
+  * 如果使用自定义的
+    * 注意要替换zookeeper的jar包
+* 用Hadoop的jar包，替换HBase的jar包
+  * 首先备份HBase总的 hadoop开头的jar包
+  * 然后、将hadoop的jar包复制到HBase的目录中。
+
+
 
 
 
@@ -655,6 +675,12 @@ hbase.tmp.dir
 ```shell
 $ bin/start-hbase.sh
 ```
+
+可以通过jps可到多了两个线程
+
+同时也可以使用http://127.0.0.1:60010 看服务器的命令。
+
+
 
 
 

@@ -975,6 +975,84 @@ clusterssh+top,感觉是一个穷人用的监控系统，但是他确实很有�
 
 
 
+### 2.6.  Shell基本命令
+
+```shell
+# 命名空间的操作
+hbase(main):009:0> list_namespace
+hbase(main):009:0> list_namespace_tables 'hbase'
+hbase(main):009:0> help 'create_namespace'
+hbase(main):009:0> create_namespace 'ns1'
+hbase(main):009:0> list_namespace_tables 'ns1'
+
+# 添加表
+hbase(main):009:0>  help 'create'
+hbase(main):009:0>  create 'ns1:stuInfo' , 'info','contact'
+hbase(main):009:0>  list_namespace_tables 'ns1'
+hbase(main):009:0> 	help 'scan'
+hbase(main):009:0> 	scan 'ns1:stuInfo'
+
+# 添加数据
+hbase(main):009:0> 	help 'put'
+hbase(main):009:0> 	put  'ns1:stuInfo','1001','info:age',"18"
+hbase(main):009:0> 	put  'ns1:stuInfo','1001','info:gender',"male"
+hbase(main):009:0> 	put  'ns1:stuInfo','1001','info:gender',"1"
+
+hbase(main):009:0> 	put  'ns1:stuInfo','1003','info:age',"18"
+hbase(main):009:0> 	put  'ns1:stuInfo','1003','info:name',"小懂"
+hbase(main):009:0> 	put  'ns1:stuInfo','1003','info:gender',"male"
+
+hbase(main):009:0> 	scan 'ns1:stuInfo'
+
+# 查询 
+hbase(main):009:0> 	get 'ns1:stuInfo','1003'
+hbase(main):009:0> 	get 'ns1:stuInfo','1003','info'
+hbase(main):009:0> 	get 'ns1:stuInfo','1003','info:age'
+hbase(main):009:0> 	get 'ns1:stuInfo','1003','info:age','info:gender'
+
+# 查询历史版本
+hbase(main):009:0> 	get 'ns1:stuInfo','1003',{COLUMN=>'info',VERSIONS=>5}
+
+
+# scan 全表查询 下面有些用 get 检索不到
+hbase(main):009:0> 	scan 'ns1:stuInfo',{COLUMN=>['info:age','info:gender'],LIMIT=>2,STARTROW=>'1003'}
+hbase(main):009:0> 	scan 'ns1:stuInfo',{STARTROW=>'1001',STOPROW=>'1003'}
+
+# 删除
+hbase(main):009:0>  help 'delete'
+hbase(main):009:0>  help 'deleteall'
+hbase(main):009:0>  scan 'ns1:stuInfo'
+# 下面报错,但是可以使用deleteall
+hbase(main):009:0>  delete 'ns1:stuInfo','1001'
+# 下面删除一个列族是无效的,但是可以使用deleteall
+hbase(main):009:0>  delete 'ns1:stuInfo','1001','info'
+# 只能这样删除
+hbase(main):009:0>  delete 'ns1:stuInfo','1001','info:age'
+
+
+# 修改数据，也是用put
+
+
+# 清空数据,并且对region的数量重置
+truncate
+# 清空数据,region的数量不变
+truncate_preserve
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## 3. 运行Shell
 
 要运行HBase shell，请执行以下操作：
@@ -1206,6 +1284,10 @@ hbase> count '<tablename>', CACHE => 1000
 以上计数一次提取1000行。如果您的行很大，请将CACHE设置得更低。默认是一次获取一行。
 
 
+
+## 4. java开发
+
+见专门的文档
 
 
 

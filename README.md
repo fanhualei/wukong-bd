@@ -4,6 +4,12 @@
 
 
 
+![alt](doc/imgs/hive.png)
+
+
+
+
+
 > 目录
 
 
@@ -11,18 +17,19 @@
 * 基础
   * [虚拟机安装](doc/virtualbox.md)
   * [Linxu基本操作](doc/linux.md)
-* Hadoop
-  * [Hadoop简介](doc/hadoop-overview.md)
-  * [Hadoop使用](doc/hadoop.md)
-    * [MapReduce例子](examples/mapreduce)
-    * [Hadoop分布式环境配置](doc/hadoop-ha.md)
-      * Hadoop分布式环境配置
-      * NameNode HA配置
-      * ResourceManger HA 配置
-* [Hive](doc/hive.md)
-  * [ETL介绍](doc/hive.md#etl介绍)
-  * [Hive介绍](doc/hive.md#hive介绍)
-  * [Hive的安装和基本使用](doc/hive.md#hive的安装和基本使用)
-* [Sqoop](doc/sqoop.md)
-* [Hbase](doc/hbase.md)
+  * [Linxu常用命令](doc/linux-mini.md)
+  * [java安装](doc/java.md)
+* 接入层
+  * [Sqoop](doc/sqoop.md)
+* 存储层
+  * Hadoop
+    * [Hadoop简介](doc/hadoop-overview.md)
+    * [Hadoop使用](doc/hadoop.md)
+    * [Hadoop完全分布层安装](doc/hadoop-ha.md)
+  * [Hbase](doc/hbase.md)
+* 计算层
+  * MapReduce
+    * [MapReduce文档](doc/hadoop.md#编写MapReduce)
+    * [MapReduce例子代码](examples/mapreduce/)
+  * [Hive](doc/hive.md)
 

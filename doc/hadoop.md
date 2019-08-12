@@ -146,7 +146,7 @@ $ ll /media/sf_share/
 $ tar -zxf /media/sf_share/hadoop-2.9.2.tar.gz -C /opt/modules/apache
 $ cd apache/hadoop-2.9.2
 $ vi etc/hadoop/hadoop-env.sh 
-# 将JavaHome 修改成export JAVA_HOME=/opt/modules/jdk1.7.0_67
+# 将JavaHome 修改成export JAVA_HOME=/opt/modules/jdk1.8.0_221
 ```
 
 
@@ -194,7 +194,7 @@ $ cat output/*
 ```xml
  <property>
   <name>hadoop.tmp.dir</name>
-  <value>file:/opt/modules/apache/hadoop-2.9.2/tmp</value>
+  <value>/opt/modules/apache/hadoop-2.9.2/tmp</value>
   <description>Abasefor other temporary directories.</description>
  </property>
 ```
@@ -204,15 +204,16 @@ $ cat output/*
 当然可以使用这个方式离开安全模式，但是为了不再出现这个问题，我决定把路径给修改了。如果修改了tmp是否需要重新格式化呢？ 另外原先的文件还有保存吗？
 
 ```shell
+# 重新格式化
+bin/hadoop namenode -format
+```
+
+如果不想更换目录，可以离开安全模式
+
+```shell
 # 离开安全模式的方法
 ./hdfs dfsadmin -safemode leave
 ```
-
-
-
-
-
-
 
 
 
@@ -327,6 +328,7 @@ $  systemctl stop firewalld.service
 ```shell
 $ bin/hdfs dfs -mkdir /user
 $ bin/hdfs dfs -mkdir /user/root
+$ bin/hdfs dfs -mkdir /user/root/input
 ```
 
 

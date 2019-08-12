@@ -563,6 +563,12 @@ LineItem 列将是这样的：
 
 ## 2.  安装
 
+有三种安装方法
+
+- 单机版：只使用本地文件模式，不使用hdfs.
+- 伪分布模式：在单机模拟分布式，使用hdfs
+- 分布式模式：配置hbase的分布式模式
+
 
 
 ### 2.1. 基本要求
@@ -617,11 +623,120 @@ ZooKeeper 3.4.x是必需的。
 
 
 
-### 2.2. 三种安装模式
+### 2.2. 单机模式
 
-* 单机版：只使用本地文件模式，不使用hdfs.
-* 伪分布模式：在单机模拟分布式，使用hdfs
-* 分布式模式：配置hbase的分布式模式
+
+
+hbase-env.sh 路径
+
+```
+export JAVA_HOME=/opt/modules/jdk1.8.0_221
+```
+
+
+
+#### 2.2.1. 修改*hbase-site.xml* 文件
+
+```xml
+<property>
+    <name>hbase.rootdir</name>
+    <value>file:/opt/modules/data/hbase</value>
+  </property>
+  <property>
+    <name>hbase.zookeeper.property.dataDir</name>
+    <value>/opt/modules/data/zookeeper</value>
+  </property>
+  <property>
+    <name>hbase.unsafe.stream.capability.enforce</name>
+    <value>false</value>
+    <description>
+      Controls whether HBase will check for stream capabilities (hflush/hsync).
+
+      Disable this if you intend to run on LocalFileSystem, denoted by a rootdir
+      with the 'file://' scheme, but be mindful of the NOTE below.
+
+      WARNING: Setting this to false blinds you to potential data loss and
+      inconsistent system state in the event of process and/or node failures. If
+      HBase is complaining of an inability to use hsync or hflush it's most
+      likely not a false positive.
+    </description>
+  </property>
+```
+
+
+
+#### 2.2.2. 启动hbase
+
+```shell
+$ bin/start-hbase.sh
+```
+
+
+
+#### 2.2.3. 查看启动
+
+```shell
+$ jps	
+```
+
+只能看到HMaster这一个线程。
+
+并且http://192.168.56.102:60010 不能访问，使用[http://192.168.56.102:16010](http://192.168.56.102:16010/)
+
+HBASE1.0之后的版本web端访问的接口变更为16010
+
+![alt](imgs/hbase-master.png)
+
+
+
+http://192.168.56.102:16030/
+
+![alt](imgs/hbase-regionServer.png)
+
+
+
+#### 2.2.4. 启动后的端口
+
+![alt](imgs/hbase-single-ports.png)
+
+
+
+
+
+#### 2.2.5. 简练练习
+
+```shell
+$ ./bin/hbase shell
+$ hbase(main):001:0> create 'test', 'cf'
+$ hbase(main):002:0> list 'test'
+$ hbase(main):003:0> describe 'test'
+
+$ hbase(main):003:0> put 'test', 'row1', 'cf:a', 'value1'
+$ hbase(main):004:0> put 'test', 'row2', 'cf:b', 'value2'
+$ hbase(main):005:0> put 'test', 'row3', 'cf:c', 'value3'
+
+$ hbase(main):006:0> scan 'test'
+
+$ hbase(main):007:0> get 'test', 'row1'
+
+$ hbase(main):008:0> disable 'test'
+
+$ hbase(main):011:0> drop 'test'
+
+$ exit
+```
+
+
+
+#### 2.2.6. 关闭hbase
+
+```shell
+$ bin/stop-hbase.sh
+```
+
+
+
+
 
 
 
@@ -631,7 +746,7 @@ ZooKeeper 3.4.x是必需的。
 
 * hbase-env.sh
 * hbase-site.xml
-* reginservers
+* reginservers(**官方文档没有说**)
 
 fanhl@189.cn
 
@@ -642,26 +757,150 @@ fanhl@189.cn
   * 也可以使用默认的 
   * 如果使用自定义的
     * 注意要替换zookeeper的jar包
-* 用Hadoop的jar包，替换HBase的jar包
+* 用Hadoop的jar包，替换HBase的jar包(**可以不用执行**)
   * 首先备份HBase总的 hadoop开头的jar包
   * 然后、将hadoop的jar包复制到HBase的目录中。
 
 
 
+#### 2.3.1. 解压hbase安装包
+
+[在hbase网站上](https://www.apache.org/dyn/closer.lua/hbase/)下载2.2.0版本`hbase-2.2.0-bin.tar.gz`
+
+```shell
+$ cd /opt/modules/apache
+$ tar xzvf /media/sf_share/hbase-2.2.0-bin.tar.gz
+```
+
+
+
+#### 2.3.2. 配置hbase-env.sh
+
+```
+export JAVA_HOME=/opt/modules/jdk1.8.0_221
+```
+
+
+
+#### 2.3.3 配置hbase-site.xml
+
+```xml
+<!--
+/**
+ * 官网上写的是通过8020端口
+ * 由于我没有启动分布式，所以这里要修改成9000
+   不然在分布式上显示不了数据库的内容
+ *
+ */
+-->
+
+
+<property>
+  <name>hbase.rootdir</name>
+  <value>hdfs://localhost:9000/hbase</value>
+</property>
+
+<property>
+  <name>hbase.cluster.distributed</name>
+  <value>true</value>
+</property>
+
+
+<property>
+    <name>hbase.zookeeper.property.dataDir</name>
+    <value>/opt/modules/data/zookeeper</value>
+</property>
+
+
+```
+
+#### 2.3.4. 启动hbase
+
+```shell
+$ bin/start-hbase.sh
+$ jps
+```
+
+![alt](imgs/hbase-jps.png)
+
+可以通过jps可到多了两个线程.HMaster和HRegionServer进程。
+
+HQuorumPeer 是zookeeper
+
+#### 2.3.5. 开放接口
+
+如果闲麻烦，可以关闭防火墙
+
+
+```shell
+$ systemctl stop firewalld.service
+```
+
+或者
+
+```
+firewall-cmd --add-port=16010/tcp --permanent
+firewall-cmd --add-port=16030/tcp --permanent
+firewall-cmd --reload
+systemctl status firewalld
+firewall-cmd --list-ports
+```
 
 
 
 
 
-####  *hbase-site.xml* 文件修改
 
-hbase.tmp.dir
+#### 2.3.6. 启动后的常用网址
 
-本地文件系统上的临时目录。将此设置更改为指向比'/ tmp'更永久的位置，这是java.io.tmpdir的常用解决方案，因为'/ tmp'目录在机器重启时被清除。（同样的道理hadoop也需要进行修改）。
+* HMaster
+  * http://192.168.56.102:16010
+* HRegionServer
+  * http://192.168.56.102:16030
+* hadoopMaster
+  * [http://192.168.56.102:50070](http://192.168.56.102:50070/)
+  * 也可使用命令来查看
+
+```shell
+$ ../hadoop-2.9.2/bin/hdfs dfs -ls /
+```
 
 
 
-### 2.4. 运行并确认安装
+#### 2.3.7. 简练练习
+
+```shell
+$ bin/hbase shell
+$ hbase(main):001:0> create 'test', 'cf'
+$ hbase(main):002:0> list 'test'
+$ hbase(main):003:0> describe 'test'
+
+$ hbase(main):003:0> put 'test', 'row1', 'cf:a', 'value1'
+$ hbase(main):004:0> put 'test', 'row2', 'cf:b', 'value2'
+$ hbase(main):005:0> put 'test', 'row3', 'cf:c', 'value3'
+
+$ hbase(main):006:0> scan 'test'
+
+$ hbase(main):007:0> get 'test', 'row1'
+
+# 这命令可以不执行
+#$ hbase(main):008:0> disable 'test'
+
+# 这命令可以不执行
+#$ hbase(main):011:0> drop 'test'
+
+$ exit
+```
+
+
+
+
+
+
+
+
+
+### 2.4. 日常运行命令
 
 > 前置服务
 
@@ -676,23 +915,26 @@ hbase.tmp.dir
 $ bin/start-hbase.sh
 ```
 
-可以通过jps可到多了两个线程
-
-同时也可以使用http://127.0.0.1:60010 看服务器的命令。
-
-
-
 
 
 > 停止
 
 ```shell
 $ bin/stop-hbase.sh
+$ jps
 ```
 
 
 
+> 如果发现Hregionserver没有停止
 
+```shell
+$ bin/hbase-daemon.sh stop regionserver RegionServer
+```
+
+
+
+[Hadoop, HBase, Hive, ZooKeeper默认端口说明](https://www.cnblogs.com/hankedang/p/5649414.html)
 
 
 
@@ -881,7 +1123,7 @@ IRB.conf[:HISTORY_FILE] = "#{ENV['HOME']}/.irb-save-history"
 
 要将日期'08 / 08/16 20:56:29'从hbase日志转换为时间戳，请执行以下操作：
 
-```
+```shell
 hbase(main):021:0> import java.text.SimpleDateFormat
 hbase(main):022:0> import java.text.ParsePosition
 hbase(main):023:0> SimpleDateFormat.new("yy/MM/dd HH:mm:ss").parse("08/08/16 20:56:29", ParsePosition.new(0)).getTime() => 1218920189000

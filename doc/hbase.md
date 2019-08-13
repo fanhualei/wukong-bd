@@ -1291,6 +1291,61 @@ hbase> count '<tablename>', CACHE => 1000
 
 
 
+## 5. 辅助功能
+
+
+
+### 5.1. MapReduce与HBase
+
+MR在HBase中做分析的不多，但是可以做一些简单的数据清洗
+
+HBase自带一个MR程序，可以使用`lib/hbase-server-***-hadoop2.jar`，里面有一些常用的导入导出命令。
+
+
+
+### 5.2. Hive与HBase集成
+
+不用深入了解，Hive基本上会被其他的功能替换。
+
+通过Hive可以进行max avg min max.
+
+
+
+## 6. 常用功能
+
+
+
+### 6.1. HBase压缩
+
+- 要检查hadoop是否支持压缩
+
+```shell
+# 检查是否支持snappy压缩
+bin/hadoop checknative
+```
+
+- 检查hbase是否支持压缩
+
+```shell
+bin/hbase org.apache.hadoop.util.NativeLibraryChecker
+```
+
+然后在网上查如何启动压缩。
+
+
+
+### 6.2. 优化与维护
+
+
+
+### 6.3. phoenix集成
+
+
+
+
+
+
+
 ##  参考资料
 
 

@@ -1340,6 +1340,8 @@ bin/hbase org.apache.hadoop.util.NativeLibraryChecker
 
 ### 6.3. phoenix集成
 
+[phoenix使用](hbase-phoenix.md)
+
 
 
 

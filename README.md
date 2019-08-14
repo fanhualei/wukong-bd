@@ -1,6 +1,6 @@
 # wukong-bd
 
-大数据相关
+大数据相关，在学习与使用之前，建议先去官网看一边文档，然后再去看国内的文章或者视频教程。
 
 
 
@@ -21,6 +21,7 @@
   * [java安装](doc/java.md)
 * 接入层
   * [Sqoop](doc/sqoop.md)
+  * [flume](doc/flume.md)
 * 存储层
   * Hadoop
     * [Hadoop简介](doc/hadoop-overview.md)
@@ -32,4 +33,21 @@
     * [MapReduce文档](doc/hadoop.md#编写MapReduce)
     * [MapReduce例子代码](examples/mapreduce/)
   * [Hive](doc/hive.md)
+  * [phoenix](doc/hbase-phoenix.md)
+* 辅助工具
+  * [oozie](doc/oozie.md)
+  * [ZooKeeper](doc/zookeeper.md)
+
+
+
+
+
+
+
+**MapReduce可以被Spark Core替换？**是的，它会随着时间的推移被替代，而且这种替代是合理的。但是spark目前还不是特别成熟能完全替代MapReduce。此外，也没有人会完全放弃MapReduce,除非所有依赖MapReduce的工具都有可替代方案。比如说，想要在pig上运行的脚本能在spark上执行还是有些工作要做的。
+**Hive可以被Spark SQL替换？**是的，这又是对的。但是我们需要理解的是Spark SQL对于spark本身来说还是比较年轻的，大概要年轻1.5倍。相对于比较成熟的Hive来说它只能算是玩具了吧，我将在一年半到两年之内再回头来看Spark SQL.。如果我们还记得的话，两到三年前Impala就号称要终结Hive,但是截止到目前两种技术也还是共存状态，Impala并没有终结Hive。在这里对于Spark SQL来说也是一样的。
+**Storm可以被Spark Streaming替换？** 是的，可以替换。只不过平心而论storm并不是Hadoop生态系统中的一员，因为它是完全独立的工具。他们的计算模型并不太形同，所以我不认为storm会消失，反而仍会作为一个商业产品。
+**Mahout可以被MLib替换？**公平的讲，Machout已经失去了市场，而且从过去的几年来看它正在快速失去市场。对于这个工具，我们可以说这里是Spark真正可以替换Hadoop生态系统中的地方。 因此，总的来说，这篇文章的结论是：
+**不要被大数据供应商的包装所愚弄。**他们大量推进的是市场而不是最终的真理。Hadoop最开始是被设计为可扩展的框架，而且其中很多部分是可替换的：可以将HDFS替换为Tachyon，可以将YARN替换为Mesos，可以将MapReduce替换为Tez并且在Tez之上可以运行Hive。这将会是Hadoop技术栈的可选方案或者完全替代方案？倘若我们放弃的MR（MapReduce）而使用Tez,那么它还会是Hadoop吗？
+作者：Codlife一王家二公子链接：https://www.jianshu.com/p/560016ca2e89来源：简书简书著作权归作者所有，任何形式的转载都请联系作者获得授权并注明出处。
 

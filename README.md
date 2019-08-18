@@ -34,7 +34,7 @@
   * [phoenix](doc/hbase-phoenix.md)
 * 辅助工具
   * [oozie](doc/oozie.md)
-  * hu
+  * [hue](doc/hue.md)
   * [ZooKeeper](doc/zookeeper.md)
 * 开发语言
   * [scala](doc/scala.md)

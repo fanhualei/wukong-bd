@@ -27,6 +27,7 @@
     * [Hadoop完全分布层安装](doc/hadoop-ha.md)
   * [Hbase](doc/hbase.md)
 * 计算层
+  * [Spark](doc/spark.md)
   * MapReduce
     * [MapReduce文档](doc/hadoop.md#编写MapReduce)
     * [MapReduce例子代码](examples/mapreduce/)

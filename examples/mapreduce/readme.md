@@ -14,3 +14,4 @@
 | [hadoop-examples](hadoop-examples/)                     | hadoop官方提供的例子                     |      |
 | [wukong-mapreduce-examples](wukong-mapreduce-examples/) | 展示了mapreduce常用功能的例子            |      |
 
+![alt](idea-language-level.png)

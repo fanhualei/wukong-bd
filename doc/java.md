@@ -8,6 +8,18 @@ JDK的版本，一定要和Hadoop Hive HBase ZooKeeper 等保持一致。
 
 
 
+> Linux环境变量设置文件
+
+/etc/profile 全局用户，应用于所有的Shell。
+
+/$HOME/.profile 当前用户，应用于所有的Shell。
+
+/etc/bash_bashrc 全局用户，应用于Bash Shell。
+
+~/.bashrc 局部当前，应用于Bash Sell。
+
+
+
 参考文档
 
 - [Hadoop支持的Java版本](https://cwiki.apache.org/confluence/display/HADOOP2/HadoopJavaVersions)

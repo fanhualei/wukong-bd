@@ -74,6 +74,8 @@ $ java -version
 
 > vi /etc/profile 的内容
 
+下面建议使用jdk1.8
+
 ```
 export JAVA_HOME=/opt/modules/jdk1.7.0_67
 export PATH=$PATH:$JAVA_HOME/bin
@@ -180,11 +182,17 @@ $ cat output/*
 
 > etc/hadoop/core-site.xml:
 
+这里强烈建议配置`hadoop.tmp.dir`,不然如果关机几天后,再启动hadoop后,tmp目录被清空了,这样就启动不了namenode
+
 ```xml
 <configuration>
     <property>
         <name>fs.defaultFS</name>
         <value>hdfs://localhost:9000</value>
+    </property>
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>/opt/modules/apache/hadoop-2.9.2/data</value>
     </property>
 </configuration>
 ```
@@ -279,6 +287,10 @@ $ bin/hdfs namenode -format
 hadoop进程的log写入到了` $HADOOP_LOG_DIR`目录（默认在` $HADOOP_HOME/logs`）
 
 ![alt](imgs/hadoop-start-namenode.png)
+
+
+
+![alt](imgs/hadoop-dir-tree.png)
 
 
 
@@ -457,6 +469,8 @@ ResourceManager - `http://localhost:8088/
 > web界面
 
 ![alt](imgs/yarn-result.png)
+
+http://127.0.0.1:8088/
 
 
 

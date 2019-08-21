@@ -1,4 +1,4 @@
-package wukong
+package wukong.scala
 
 object Hello {
   def main(args: Array[String]): Unit = {

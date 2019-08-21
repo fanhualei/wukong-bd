@@ -1,6 +1,7 @@
-package wukong
-import org.apache.spark.{SparkConf, SparkContext}
+package wukong.spark
+
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.{SparkConf, SparkContext}
 
 /**
  * 读取本地的一个文件,并且计算文件内容

@@ -4,6 +4,16 @@
 
 ## 1. 快速入门
 
+
+
+Spark在Windows和类UNIX系统（例如Linux，Mac OS）上运行。在一台机器上本地运行很容易 - 您只需要`java`在系统上安装`PATH`，或者`JAVA_HOME`指向Java安装的环境变量。
+
+Spark运行在Java 8 +，Python 2.7 + / 3.4 +和R 3.1+上。对于Scala API，Spark 2.4.3使用Scala 2.12。您需要使用兼容的Scala版本（2.12.x）。
+
+请注意，自Spark 2.2.0起，对2.6.5之前的Java 7，Python 2.6和旧Hadoop版本的支持已被删除。自2.3.0起，对Scala 2.10的支持被删除。自Spark 2.4.1起，对Scala 2.11的支持已被弃用，将在Spark 3.0中删除。
+
+
+
 ### 1.1. 安装模式
 
 * 本地
@@ -42,11 +52,11 @@ spark会产生很多日志，那么日志保存在哪里？ 如何将这些日�
 
 #### 2.1.2. 安装scala
 
-我安装了[Scala 2.13.0](https://www.scala-lang.org/download/2.13.0.html) ,这个版本需要`jdk1.8`支持
+最新版本是 [Scala 2.13.0](https://www.scala-lang.org/download/2.13.0.html) ,没有使用这个版本
 
-具体安装步骤省略,可以参考上面的文档
+[Scala2.12.9](https://www.scala-lang.org/download/2.12.9.html)
 
-
+具体安装步骤省略,可以参考上面的文档,
 
 #### 2.1.3 安装spark
 

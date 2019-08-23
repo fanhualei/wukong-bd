@@ -22,4 +22,93 @@
     * 每小时的UV
     * 当天访问量排名前5的IP地址
     * 当天访问量排名前5的页面数
+    
+    
+    
+### Spark应用参数设置
 
+```scala
+    val config = new SparkConf()
+      .setAppName("nginx-log")
+      .setMaster("local")
+```    
+
+有三个地方可以设置:
+1. 在spark配置文件中设置参数 spark-defaults.conf
+2. 在 bin/spark-submit 的命令中添加参数
+3. 在代码中写
+
+以上优先级是3>2>1
+
+### 打包以及上传执行
+
+要将代码中写死的给注释掉
+
+1. 建立jar包,放到某个目录中
+2. 通过bin/spark-submit提交应用
+
+> 命令
+#### 1. 默认的local提交方式
+
+```shell
+bin/spark-submit \
+--class wukong.spark.nginx.Nginx \
+--master local[4] \
+/home/jars/o2o22.jar
+```
+
+####  2. 在standalone中执行(这个不常用,可以不用执行)
+
+##### 在standalone本地模式
+只用修改--master
+```shell
+bin/spark-submit \
+--class wukong.spark.nginx.Nginx \
+--master spark://hostname:7070 \
+/home/jars/o2o22.jar
+```
+
+##### 在standalone运行模式
+有两种模式,只用修改--deploy-mode
+
+* client:
+
+
+```shell
+bin/spark-submit \
+--class wukong.spark.nginx.Nginx \
+--deploy-mode client \
+--master spark://hostname:7070 \
+/home/jars/o2o22.jar
+```
+
+* cluster:
+```shell
+bin/spark-submit \
+--class wukong.spark.nginx.Nginx \
+--deploy-mode cluster \
+--master spark://hostname:6066 \
+/home/jars/o2o22.jar
+```
+
+#### 3.在yarn上执行
+
+* client:
+
+
+```shell
+bin/spark-submit \
+--class wukong.spark.nginx.Nginx \
+--deploy-mode client \
+--master yarn \
+/home/jars/o2o22.jar
+```
+
+* cluster:
+```shell
+bin/spark-submit \
+--class wukong.spark.nginx.Nginx \
+--deploy-mode cluster \
+--master yarn \
+/home/jars/o2o22.jar
+```

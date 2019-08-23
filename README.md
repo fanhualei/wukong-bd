@@ -37,6 +37,7 @@
   * [oozie](doc/oozie.md)
   * [hue](doc/hue.md)
   * [ZooKeeper](doc/zookeeper.md)
+  * [zeppelin](doc/zeppelin.md)
 * 开发语言
   * [scala](doc/scala.md)
 

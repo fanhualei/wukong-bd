@@ -1,6 +1,5 @@
 package wukong.spark
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 
 /**
@@ -10,21 +9,23 @@ object Spark {
 
   def main(args: Array[String]): Unit = {
 
-    val config = new SparkConf().setAppName("WordCount").setMaster("local")
-    val sparkContext = new SparkContext(config)
+    val config = new SparkConf()
+      .setAppName("WordCount")
+      //在提交yarn的情况下要注释掉这行程序
+      //.setMaster("local")
 
-    // Should be some file on your system
-    val logFile = "/opt/modules/apache/spark-2.4.3-bin-hadoop2.7/README.md"
-    val spark = SparkSession.builder.appName("Simple Application").getOrCreate()
-    val logData = spark.read.textFile(logFile).cache()
+    val sc = new SparkContext(config)
+    val filePath = "hdfs://127.0.0.1:9000/user/fan/input/a.txt"
 
+    val fileRdd=sc.textFile(filePath)
+    fileRdd.collect().foreach(println)
 
-    logData.collect().foreach {println}
+    val numAs = fileRdd.filter(line => line.contains("a")).count()
+    val numBs = fileRdd.filter(line => line.contains("b")).count()
 
-    val numAs = logData.filter(line => line.contains("a")).count()
-    val numBs = logData.filter(line => line.contains("b")).count()
     println(s"Lines with a: $numAs, Lines with b: $numBs")
-    spark.stop()
+
+    println("\nok===================================\n")
 
   }
 

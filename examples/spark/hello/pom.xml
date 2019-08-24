@@ -6,11 +6,13 @@
 
     <groupId>wukong</groupId>
     <artifactId>hello</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
+    <packaging>jar</packaging>
 
     <properties>
-        <scala.version>2.12.9</scala.version>
-        <spark.scala.version>2.12</spark.scala.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <scala.version>2.11.12</scala.version>
+        <spark.scala.version>2.11</spark.scala.version>
         <spark.version>2.4.3</spark.version>
     </properties>
 
@@ -42,6 +44,49 @@
         </dependency>
 
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--scala原始在sbt(类似java maven)上做开发,现可以用这个插件来在maven中进行开发-->
+<!--            <plugin>-->
+<!--                <groupId>org.scala-tools</groupId>-->
+<!--                <artifactId>maven-scala-plugin</artifactId>-->
+<!--                <version>2.15.2</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>scala-compile-first</id>-->
+<!--                        <goals>-->
+<!--                            <goal>compile</goal>-->
+<!--                        </goals>-->
+<!--                        <configuration>-->
+<!--                            <includes>-->
+<!--                                <include>**/*.scala</include>-->
+<!--                            </includes>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
+
+
+            <plugin>
+                <!-- 这是个编译scala代码的 -->
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>4.1.1</version>
+                <executions>
+                    <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
 
 
 </project>

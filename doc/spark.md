@@ -52,13 +52,21 @@ spark会产生很多日志，那么日志保存在哪里？ 如何将这些日�
 
 #### 2.1.2. 安装scala
 
-最新版本是 [Scala 2.13.0](https://www.scala-lang.org/download/2.13.0.html) ,没有使用这个版本
+最新版本是 [Scala 2.13.0](https://www.scala-lang.org/download/2.13.0.html) ,没有使用这个版本[Scala2.12.9](https://www.scala-lang.org/download/2.12.9.html)
 
-[Scala2.12.9](https://www.scala-lang.org/download/2.12.9.html)
+用的是scala11,因为当前用的spark-2.4.3默认的是[**scala11.12**](https://www.scala-lang.org/download/2.11.12.html)
 
 具体安装步骤省略,可以参考上面的文档,
 
+
+
+
+
 #### 2.1.3 安装spark
+
+`spark2.4.3` 我刚开始安装了是`scala12`版本,发现启动`bin/spark-shell` 提示是`scala11.12` ,所以我换成了11.12版本.
+
+如果spark版本与Idea开发的版本不一致,那么在提交到yarn时,会出现错误.
 
 
 
@@ -75,7 +83,7 @@ vi spark-env.sh
 
 ```
 export JAVA_HOME=/opt/jdk1.8.0_161
-export SCALA_HOME=/opt/modules/apache/scala-2.13.0
+export SCALA_HOME=/opt/modules/apache/scala-2.11.12
 export HADOOP_HOME=/opt/modules/apache/hadoop-2.9.2
 export HADOOP_CONF_DIR=/opt/modules/apache/hadoop-2.9.2/etc/hadoop
 export SPARK_MASTER_IP=127.0.0.1
@@ -167,7 +175,7 @@ $ sbin/stop-all.sh
 
 使用idea,可以通过代码提示,来得到spark的命令,这样就不用死记硬背了.
 
-
+[详细内容请参考](../examples/spark/readme.md)
 
 
 

@@ -114,22 +114,22 @@ object Nginx {
     pvuvRdd.saveAsTextFile("output/pvuv")
 
     //保存到mysql
-    val con=DriverManager.getConnection("url","useranme","pw")
-    val sql="insert into tablename values(?,?,?) "
-    val pstmt =con.prepareStatement(sql);
-    pvuvRdd.foreachPartition(iter=>{
-      iter.foreach(t=>{
-        val date =t._1;
-        val pv=t._2
-        val uv=t._3
-        pstmt.setString(1,date)
-        pstmt.setInt(2,pv)
-        pstmt.setInt(3,uv)
-        pstmt.executeUpdate()
-      })
-    })
-    pstmt.close()
-    con.close()
+//    val con=DriverManager.getConnection("url","useranme","pw")
+//    val sql="insert into tablename values(?,?,?) "
+//    val pstmt =con.prepareStatement(sql);
+//    pvuvRdd.foreachPartition(iter=>{
+//      iter.foreach(t=>{
+//        val date =t._1;
+//        val pv=t._2
+//        val uv=t._3
+//        pstmt.setString(1,date)
+//        pstmt.setInt(2,pv)
+//        pstmt.setInt(3,uv)
+//        pstmt.executeUpdate()
+//      })
+//    })
+//    pstmt.close()
+//    con.close()
 
 
     // 为了看 http://127.0.0.1:4040/ 这个界面

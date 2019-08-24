@@ -6,8 +6,6 @@
 
 撰写一个简单的spark代码
 
-
-
 创建一个新的scala功能, 网上有很多教程,但是错误很多. 例如要通过maven来生成等,结果模板很旧.
 
 我的具体步骤如下:
@@ -247,8 +245,6 @@ sbin/start-yarn.sh
 ```
 
 #### 1.4.2. 以Client的方式启动
-
-
 
 ```shell
 ./bin/spark-submit --class org.apache.spark.examples.SparkPi \

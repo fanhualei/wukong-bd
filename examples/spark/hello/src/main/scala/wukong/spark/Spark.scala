@@ -15,7 +15,12 @@ object Spark {
       //.setMaster("local")
 
     val sc = new SparkContext(config)
-    val filePath = "hdfs://127.0.0.1:9000/user/fan/input/a.txt"
+
+    println(config.get("spark.master"))
+
+    //val filePath = "hdfs://127.0.0.1:9000/user/fan/input/a.txt"
+    //如果在yarn上执行，那么默认的是hdfs ,如果在idea,默认的是本地
+    val filePath = "input/a.txt"
 
     val fileRdd=sc.textFile(filePath)
     fileRdd.collect().foreach(println)
@@ -24,9 +29,6 @@ object Spark {
     val numBs = fileRdd.filter(line => line.contains("b")).count()
 
     println(s"Lines with a: $numAs, Lines with b: $numBs")
-
     println("\nok===================================\n")
-
   }
-
 }

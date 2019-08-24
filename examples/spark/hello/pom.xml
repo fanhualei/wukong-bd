@@ -47,29 +47,8 @@
 
     <build>
         <plugins>
-            <!--scala原始在sbt(类似java maven)上做开发,现可以用这个插件来在maven中进行开发-->
-<!--            <plugin>-->
-<!--                <groupId>org.scala-tools</groupId>-->
-<!--                <artifactId>maven-scala-plugin</artifactId>-->
-<!--                <version>2.15.2</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <id>scala-compile-first</id>-->
-<!--                        <goals>-->
-<!--                            <goal>compile</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <includes>-->
-<!--                                <include>**/*.scala</include>-->
-<!--                            </includes>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
-
-
+            <!-- 这是个编译scala代码的 -->
             <plugin>
-                <!-- 这是个编译scala代码的 -->
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
                 <version>4.1.1</version>
@@ -84,6 +63,32 @@
                     </execution>
                 </executions>
             </plugin>
+
+
+            <!-- 打胖包的工具 没有研究明白 -->
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-shade-plugin</artifactId>-->
+<!--                <version>3.2.1</version>-->
+<!--                <configuration>-->
+<!--                    &lt;!&ndash; put your configurations here &ndash;&gt;-->
+<!--                    <relocations>-->
+<!--                        <relocation>-->
+<!--                            <pattern>com.google.protobuf</pattern>-->
+<!--                            <shadedPattern>shaded.com.google.protobuf</shadedPattern>-->
+<!--                        </relocation>-->
+<!--                    </relocations>-->
+<!--                </configuration>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <phase>package</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>shade</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
+
 
         </plugins>
     </build>

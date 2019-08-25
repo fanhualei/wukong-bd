@@ -224,7 +224,54 @@ $ sbin/stop-all.sh
 
 
 
+##　4.  开发技巧
 
+
+
+### 4.1. 构建sc
+
+任何Spark程序的第一步都是先创建SparkSession。在Spark-Shell或者其他交互模式中，SparkSession已经预先被创建好了，但在正常编写的Spark程序中，我们必须手动创建SparkSession。
+
+在一些遗留的Spark代码中，我们一般使用 **new SparkContext** 这种模式。但在新的Spark版本中，我们应该避免使用这种模式，尽量使用SparkSession，因为它可以更健壮地实例化Spark和SQL Contexts，并确保没有Context冲突。
+
+> 下面是新版本的做法
+
+如果在idea中本地执行，需要VM参数中设定：`-Dspark.master=local`
+
+```scala
+package wukong.spark
+import org.apache.spark.sql.SparkSession
+object SimpleApp {
+  def main(args: Array[String]) {
+    val logFile = "input/a.txt" // Should be some file on your system
+    val spark = SparkSession.builder
+      .appName("Simple Application")
+      .getOrCreate()
+    val logData = spark.read.textFile(logFile).cache()
+    logData.collect().foreach(println)
+    val numAs = logData.filter(line => line.contains("c")).count()
+    val numBs = logData.filter(line => line.contains("d")).count()
+    println(s"\nLines with c: $numAs, Lines with d: $numBs")
+    spark.stop()
+  }
+}
+```
+
+在yarn中执行
+
+```shell
+./bin/spark-submit --class wukong.spark.SimpleApp \
+    --master yarn \
+    --deploy-mode client \
+    /home/fan/001-db/wukong-bd/examples/spark/hello/target/hello-1.0.jar \
+    
+```
+
+
+
+使用`SparkSession`发现经常提示错误，[解决Spark2.0之后，报错No implicits found for parameter evidence$6: Encoder](https://blog.csdn.net/dz77dz/article/details/88802577)
+
+![alt](https://img2018.cnblogs.com/blog/1452644/201811/1452644-20181122174228339-1009463220.png)
 
 
 

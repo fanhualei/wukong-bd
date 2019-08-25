@@ -2,6 +2,8 @@ package wukong.spark.topn
 
 import org.apache.spark.sql.SparkSession
 
+import scala.collection.mutable.ListBuffer
+
 object TopN {
   def main(args: Array[String]) {
     val logFile = "input/topn/topn.txt" // Should be some file on your system
@@ -52,6 +54,21 @@ object TopN {
         group._2.map(it => println((group._1, it)))
       })
 
+
+    println("\n 输出前三名竖排===========aggregateBykey====这个性能更高比groupby===========")
+    extractedRdd.aggregateByKey(ListBuffer[Int]())((u, v) => {
+      u += v
+      u.sorted.takeRight(3)
+    }, (u1, u2) => {
+      u1 ++= u2
+      u1.sorted.takeRight(3)
+    }).foreach(println)
+
+
+    println("\n ====foreachPartition是将一个分区中的数据全部读取打印，有可能内存泄漏．mapPartition一样")
+    extractedRdd.foreachPartition(f=>{
+      f.foreach(println)
+    })
 
     spark.stop()
   }

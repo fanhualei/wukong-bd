@@ -273,6 +273,32 @@ object SimpleApp {
 
 ![alt](https://img2018.cnblogs.com/blog/1452644/201811/1452644-20181122174228339-1009463220.png)
 
+### 4.2. 累加器与共享变量
+
+[Spark共享变量(广播变量、累加器)](https://www.cnblogs.com/itboys/p/10596497.html)
+
+
+
+### 4.3. 依赖第三方Jar包
+
+有两种做法，一个是在生成自己包时，直接把第三方包打入到jar文件中．　这样做，jar文件比较大．
+
+还有一种是，将jar提前上传．
+
+`bin/spark-shell --jars **** ` 
+
+[[Spark Core\] Spark 使用第三方 Jar 包的方式](https://www.cnblogs.com/share23/p/9768308.html)
+
+
+
+也可以将数据提交到hdfs
+
+[spark-on-yarn作业提交缓慢优化之spark jar包处理](http://blog.itpub.net/29609890/viewspace-2214787/)
+
+
+
+## 5. Spark Sql
+
 
 
 

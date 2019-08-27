@@ -10,6 +10,12 @@
 
 
 
+[TOC]
+
+
+
+
+
 
 
 
@@ -453,13 +459,15 @@ http://localhost:8088/
 
 ## 2. 官方例子-examples
 
-### 2.1. 环境搭建
+### 2.1. IDEA环境搭建
 
-> 第一步：IDEA建立一个Mave　Java工程
+#### 第一步：建立一个Mave工程
+
+参考hello工程，让log4m.properties复制过来，避免在调试过程中，出现过多的info信息
 
 
 
->  第二步：将官方代码复制过来
+####  第二步：将官方代码复制过来
 
 官方代码在spark根目录下的:examples/src/main．这里面的代码很多，将所有的代码都复制到idea中．
 
@@ -467,7 +475,7 @@ http://localhost:8088/
 
 
 
-> 第三部：修改pom.xml文件
+#### 第三步：修改pom.xml文件
 
 添加依赖以及编译方法
 
@@ -593,13 +601,31 @@ http://localhost:8088/
 
 
 
-> 第四部：编译工程
+#### 第四步：编译工程
 
 使用`maven`中的`package`来编译工程．并生成Java包
 
 
 
-> 第五部：运行其中的例子
+#### 第五步：运行例子
+
+> 设置vm options,指定本地运行
+
+不指定这个参数会报错
+
+![alt](doc/imgs/spark-idea-run-templates.png)
+
+
+
+>  找到类：SparkPi，右键点击run
+
+
+
+> 也可以给这个类指定自由参数
+
+PI计算会有一个切片参数，可以指定
+
+![alt](doc/imgs/spark-idea-run-sparkpi.png)
 
 
 

@@ -24,6 +24,8 @@ object SQLDataSourceExample {
 
   case class Person(name: String, age: Long)
 
+  val resourcePath="src/main/resources"
+
   def main(args: Array[String]) {
     val spark = SparkSession
       .builder()
@@ -35,18 +37,18 @@ object SQLDataSourceExample {
     runBasicParquetExample(spark)
     runParquetSchemaMergingExample(spark)
     runJsonDatasetExample(spark)
-    runJdbcDatasetExample(spark)
+    //runJdbcDatasetExample(spark)
 
     spark.stop()
   }
 
   private def runBasicDataSourceExample(spark: SparkSession): Unit = {
     // $example on:generic_load_save_functions$
-    val usersDF = spark.read.load("examples/src/main/resources/users.parquet")
+    val usersDF = spark.read.load(resourcePath+"/users.parquet")
     usersDF.select("name", "favorite_color").write.save("namesAndFavColors.parquet")
     // $example off:generic_load_save_functions$
     // $example on:manual_load_options$
-    val peopleDF = spark.read.format("json").load("examples/src/main/resources/people.json")
+    val peopleDF = spark.read.format("json").load(resourcePath+"/people.json")
     peopleDF.select("name", "age").write.format("parquet").save("namesAndAges.parquet")
     // $example off:manual_load_options$
     // $example on:manual_load_options_csv$
@@ -54,7 +56,7 @@ object SQLDataSourceExample {
       .option("sep", ";")
       .option("inferSchema", "true")
       .option("header", "true")
-      .load("examples/src/main/resources/people.csv")
+      .load(resourcePath+"/people.csv")
     // $example off:manual_load_options_csv$
     // $example on:manual_save_options_orc$
     usersDF.write.format("orc")
@@ -64,7 +66,7 @@ object SQLDataSourceExample {
     // $example off:manual_save_options_orc$
 
     // $example on:direct_sql$
-    val sqlDF = spark.sql("SELECT * FROM parquet.`examples/src/main/resources/users.parquet`")
+    val sqlDF = spark.sql("SELECT * FROM parquet.`src/main/resources/users.parquet`")
     // $example off:direct_sql$
     // $example on:write_sorting_and_bucketing$
     peopleDF.write.bucketBy(42, "name").sortBy("age").saveAsTable("people_bucketed")
@@ -89,7 +91,7 @@ object SQLDataSourceExample {
     // Encoders for most common types are automatically provided by importing spark.implicits._
     import spark.implicits._
 
-    val peopleDF = spark.read.json("examples/src/main/resources/people.json")
+    val peopleDF = spark.read.json(resourcePath+"/people.json")
 
     // DataFrames can be saved as Parquet files, maintaining the schema information
     peopleDF.write.parquet("people.parquet")
@@ -147,7 +149,7 @@ object SQLDataSourceExample {
 
     // A JSON dataset is pointed to by path.
     // The path can be either a single text file or a directory storing text files
-    val path = "examples/src/main/resources/people.json"
+    val path = resourcePath+"/people.json"
     val peopleDF = spark.read.json(path)
 
     // The inferred schema can be visualized using the printSchema() method

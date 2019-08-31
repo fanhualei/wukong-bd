@@ -1,5 +1,9 @@
 # spark
 
+[TOC]
+
+
+
 
 
 ## 1. 基本概念
@@ -319,6 +323,23 @@ object SimpleApp {
 ## 7.  Spark Streaming 编程
 
 [详细内容](spark-streaming.md)
+
+
+
+
+
+## 8. 性能优化
+
+* [Spark性能优化指南——基础篇](https://www.cnblogs.com/blair-chen/p/6538741.html)
+* [Spark性能优化指南——高级篇 (很详细)](https://blog.csdn.net/lukabruce/article/details/81504220)
+* [Spark在美团的实践](https://tech.meituan.com/2016/03/31/spark-in-meituan.html)
+* [java远程调用shell脚本](https://blog.csdn.net/qq_33689414/article/details/81812716)
+
+
+
+
+
+
 
 
 

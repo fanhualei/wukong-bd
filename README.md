@@ -34,10 +34,13 @@
   * [Hive](doc/hive.md)
   * [phoenix](doc/hbase-phoenix.md)
 * 辅助工具
-  * [oozie](doc/oozie.md)
-  * [hue](doc/hue.md)
-  * [ZooKeeper](doc/zookeeper.md)
-  * [zeppelin](doc/zeppelin.md)
+  * 明星产品
+    * [zookeeper](doc/zookeeper.md)
+    * [kafka](doc/kafka.md)
+  * 其他产品
+    * [oozie](doc/oozie.md)
+    * [hue](doc/hue.md)
+    * [zeppelin](doc/zeppelin.md)
 * 开发语言
   * [scala](doc/scala.md)
 

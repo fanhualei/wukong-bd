@@ -303,6 +303,15 @@ object SimpleApp {
 
 
 
+### 4.4. 算子
+
+* [spark 算子（Transformation and Action）](https://blog.csdn.net/qq_18377515/article/details/82982557)
+* 
+
+
+
+
+
 ## 5. Sql DataSet DataFrame编程指南
 
 [详细资料](spark-sql.md)
@@ -337,7 +346,8 @@ object SimpleApp {
 
 
 
-
+* [spark相关案例](https://blog.csdn.net/u012957549/article/category/7415473/1)
+* [Spark算子[15]：sample、takeSample 源码实例详解](https://blog.csdn.net/leen0304/article/details/78818743)
 
 
 

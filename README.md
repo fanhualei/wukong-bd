@@ -41,6 +41,9 @@
     * [oozie](doc/oozie.md)
     * [hue](doc/hue.md)
     * [zeppelin](doc/zeppelin.md)
+  * 三方工具
+    * [CDH](doc/cdh.md)
+    * [Kettle](doc/Kettle.md)
 * 开发语言
   * [scala](doc/scala.md)
 

@@ -1,4 +1,4 @@
-# aCDH
+# CDH
 
 [CDH-5.10.2集群的搭建【史上最全，不全不要钱】（已经实现，但是非预期效果，可能是由于内存不足）](https://blog.csdn.net/jenrey/article/details/80802052)
 

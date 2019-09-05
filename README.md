@@ -49,6 +49,8 @@
     * [CDH](doc/cdh.md)
 * 开发语言
   * [scala](doc/scala.md)
+* 案例分析
+  * [综合案例](doc/case.md)
 
 
 

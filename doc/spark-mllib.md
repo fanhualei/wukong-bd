@@ -74,3 +74,13 @@ println(s"Spearman correlation matrix:\n $coeff2")
 
 在Spark repo中的“examples / src / main / scala / org / apache / spark / examples / ml / CorrelationExample.scala”中找到完整的示例代码。
 
+
+
+
+
+> 参考文档
+
+* [Spark机器学习库（MLlib）官方指南手册中文版](https://blog.csdn.net/liulingyuan6/article/details/53582300)
+* [机器学习库（MLlib）指南](http://ifeve.com/spark-mllib/)
+* [Spark MLlib 机器学习](https://www.cnblogs.com/swordfall/p/9456222.html)
+

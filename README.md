@@ -42,8 +42,11 @@
     * [hue](doc/hue.md)
     * [zeppelin](doc/zeppelin.md)
   * 三方工具
+    * Ganglia：服务器监控
+    * Nagios 服务器监控
+    * [Kettle](doc/Kettle.md)：数据迁移
+  * 总体维护
     * [CDH](doc/cdh.md)
-    * [Kettle](doc/Kettle.md)
 * 开发语言
   * [scala](doc/scala.md)
 

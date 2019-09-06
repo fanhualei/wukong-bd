@@ -43,10 +43,31 @@
             <version>${spark.version}</version>
         </dependency>
 
+
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-mllib_${spark.scala.version}</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+
     </dependencies>
 
     <build>
         <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <!-- 源码的编译器版本 -->
+                    <source>1.8</source>
+                    <!-- class的编译器版本 -->
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+
+
             <!-- 这是个编译scala代码的 -->
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
@@ -63,6 +84,8 @@
                     </execution>
                 </executions>
             </plugin>
+
+
 
 
             <!-- 打胖包的工具 没有研究明白 -->

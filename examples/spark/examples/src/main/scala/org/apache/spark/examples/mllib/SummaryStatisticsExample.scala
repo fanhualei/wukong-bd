@@ -45,6 +45,11 @@ object SummaryStatisticsExample {
     println(summary.mean)  // a dense vector containing the mean value for each column
     println(summary.variance)  // column-wise variance
     println(summary.numNonzeros)  // number of nonzeros in each column
+
+    println(summary.max)  // Maximum value of each column.
+    println(summary.normL1)  // L1 norm of each column
+    println(summary.normL2)  // Euclidean magnitude of each column
+
     // $example off$
 
     sc.stop()

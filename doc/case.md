@@ -545,3 +545,14 @@ model1.transform(test).select("label","features","probability","prediction").col
 
 ![alt](imgs/user-case5.png)
 
+
+
+## 推荐算法
+
+
+
+* 基于内容过滤
+  * 基于某个用户的搜索浏览记录，来进行推荐
+* 协同过滤
+  * 基于其他用户行为推荐给这个用户
+

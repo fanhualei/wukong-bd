@@ -13,7 +13,7 @@
 
 
 * 基础
-  * [虚拟机安装](doc/virtualbox.md)
+  * [VBox+Vagrant虚拟机](doc/virtualbox.md)
   * [Linxu基本操作](doc/linux.md)
   * [Linxu常用命令](doc/linux-mini.md)
   * [java安装](doc/java.md)

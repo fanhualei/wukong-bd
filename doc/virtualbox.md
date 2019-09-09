@@ -1,4 +1,4 @@
-# VirtualBox虚拟机安装
+# VirtualBox+Vagrant虚拟机安装
 
 我是在win10机器上安装centos的。
 
@@ -231,4 +231,10 @@ $ reboot
 那么就手工的执行命令，见下面的提示。
 
 ![alt](imgs/vbox-share-dir-use.png)
+
+
+
+## 4: Vagrant
+
+Vagrant是一个基于Ruby的工具，用于创建和部署虚拟化开发环境。它 使用Oracle的开源[VirtualBox](https://baike.baidu.com/item/VirtualBox)虚拟化系统，使用 Chef创建自动化虚拟环境。
 

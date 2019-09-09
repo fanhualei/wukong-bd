@@ -43,6 +43,7 @@
     * [hue](doc/hue.md)
     * [zeppelin](doc/zeppelin.md)
     * [elk](doc/elk.md)
+    * [ambari](doc/ambari.md)
   * 三方工具
     * Ganglia：服务器监控
     * Nagios 服务器监控

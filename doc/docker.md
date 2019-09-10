@@ -1,3 +1,7 @@
+
+
+
+
 # Docker
 
 如果你就想简单的使用，那么花10分钟看这个文档。[10分钟学会使用docker](https://github.com/fanhualei/wukong-framework/blob/master/reference/docker.md)
@@ -81,7 +85,7 @@ $ systemctl enable docker.service && service docker start
 * [Docker - 加速镜像下载（使用DaoCloud镜像服务）](https://www.hangge.com/blog/cache/detail_2401.html)
 * [Docker的学习--命令使用详解](https://www.cnblogs.com/CraryPrimitiveMan/p/4657835.html)
 
-docker 被安装到``
+注：如果是一个干净的mini centos，会提示一个警告，这个时候，可以按照提示安装`yum install deltarpm -y`
 
 
 
@@ -546,6 +550,12 @@ $ docker run -itd -m 10240000 utuntu
 docker rm -f $(docker ps -q -a)
 ```
 
+
+
+
+
+
+
 ![alt](imgs/docker-command-content.png)
 
 
@@ -565,7 +575,7 @@ docker rm -f $(docker ps -q -a)
 
 ##### 进入一个容器：attach
 
-
+建议使用：`docker exec -it 容器名 /bin/bash`
 
 ##### 删除容器：rm
 
@@ -589,10 +599,341 @@ docker rm -f $(docker ps -q -a)
 
 
 
+#### 高级命令
+
+
+
+##### 查看容器配置信息：inspect
+
+```shell
+docker inspect test01
+```
+
+
+
+##### 执行容器的命令:exec
+
+
+
+##### 显示容器的进程: top
+
+
+
+##### 双向复制文件：cp
+
+相互复制文件
+
+```shell
+docker cp derby.log test01:/home
+docker cp test01:/home/a.txt ./
+```
+
+
+
+##### 出指定的容器的端口映射：port
+
+
+
+##### 查看容器的变化：diff
+
+```
+docker diff test01
+```
+
+![alt](imgs/docker-diff.png)
+
+
+
+##### 查看容器的日志输出：log
+
+
+
+##### 查看容器的状态：status
+
+![alt](imgs/docker-stats.png)
+
+
+
+
+
+##### 修改容器的配置：update
+
+详细内容可以通过`docker update --help`来看
+
+
+
+##### 监控整个docker的事件：event
+
+每个docker的启动，停止等事件都会被输出
+
+
+
+
+
 ### 容器数据持久化
 
 一个容器被删除后，数据也会被删除，那么怎么才能将数据保存下来呢？
 
+容器与容器之间如何共享呢？
+
+有两个方法：
 
 
-### 搭建一个平台例子
+
+##### 数据卷
+
+将宿主目录挂载到容器目录中
+
+数据卷特点： 
+
+* 在容器启动初始化时，如果容器使用的宿主机挂载点有数据，这些数据就会拷贝到容器中。 
+
+*  数据卷可以在容器直接共享和重用。 
+
+* 可以直接对数据卷里的内容进行修改。
+
+* 数据卷的变化不会影响镜像的更新。 
+
+* 卷会一直存在，即使挂载数据卷的容器已经删除。
+
+ 示例： `docker run -itd --name web01 -v /container_data/web:/data Ubuntu`
+
+ 注：/container_data/web为宿主机目录，/data是容器中目录，目录不存在会自动创建。
+
+ 
+
+##### 容器数据卷
+
+将一个运行的容器做为数据卷，让其他容器挂载这个容器实现数据共享
+
+将一个运行的容器作为数据卷，让其他容器通过挂载这个容器实现数据共享。 
+
+示例： 
+
+```shell
+# 创建一个容器，其中有一个共享的目录
+docker run -itd -v /data --name  web00  ubuntu
+docker exec web00 ls /data
+docker exec web00 touch /data/index.txt
+docker exec web00 ls /data
+
+# 创建一个容器，包含另外一个容器的目录
+docker run -itd --name web01 --volumes-from web00 ubuntu
+docker exec web01 ls /data
+```
+
+
+
+### 案例: mysql安装 
+
+删除所有容器,如果你做测试，里面有很多容器，可以全部删除，这个命令慎用
+
+`docker rm -f $(docker ps -q -a)`
+
+这个练习的目的：
+
+* 两个mysql可以相互连接
+* 可以查看mysql的日志
+* 可以将mysql的数据库给放在宿主机目录上。
+* 数据库的备份与恢复
+
+
+
+#### 安装第一个mysql
+
+```shell
+# 自动看是否有mysql镜像,如果没有就自动下载一个
+# 设置 默认密码 123456
+docker run --name mysql01 -e MYSQL_ROOT_PASSWORD=123456 -d mysql
+
+# 创建一个数据库wp
+docker exec mysql01 sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e"create database wp"' 
+
+
+# 登录到容器的msyql
+docker exec -it mysql01 mysql -uroot -p123456
+
+# 登录到容器的机器上
+docker exec -it mysql01  /bin/bash
+```
+
+
+
+#### 安装第二个mysql
+
+从第二个可以连接到第一个服务
+
+```shell
+# 自动看是否有mysql镜像,如果没有就自动下载一个
+# 设置 默认密码 123456
+docker run --name mysql02 -e MYSQL_ROOT_PASSWORD=123456 --link mysql01:dbhost -d  mysql
+
+# 登录到容器的机器上
+docker exec -it mysql02  /bin/bash
+
+#从mysql02 登录到 mysql01服务器， dbhost是一个别名
+mysql -h dbhost -uroot -p123456
+# 登录成功后，可以
+> show databases;
+```
+
+
+
+注：如果你从第一个mysql01 可以通过地址，连接到第二个服务器：mysql -h 172.17.0.4 -uroot -p123456
+
+
+
+### 案例：使用docker安装wordpress
+
+
+
+#### 传统安装的不足
+
+传统的安装方法:[WordPress详细安装教程](http://www.yzipi.com/13.htm)
+
+需要在自己的机器上安装：Nginx  php  Mysql 。
+
+但是这样会出现一些问题：例如自己的机器已经安装了一些应用软件，这样可能提前安装了Nginx php mysql，并且这些版本于wordpress要求的版本不一样，这样怎么办？
+
+
+
+#### 规划使用docker安装
+
+* 安装一个mysql的docker容器
+* 安装一个nginx+php环境的docker容器
+* 在nginx+php容器中，安装wordpress
+
+
+
+> 疑问
+
+* 为啥不把mysql nginx php安装到一个容器中?
+
+分开的好处是mysql可以公用。合起来的好处，便于打包分享。
+
+* 有没有wordpress的docker容器
+
+有，这不是练习吗，一个案例。如果真正使用中，可以直接安装wordpress
+
+* 如何找到nginx+php的docker
+
+  可以到[https://hub.docker.com](https://hub.docker.com/) 搜一下
+
+
+
+#### 准备知识
+
+
+
+##### 如何搜索镜像
+
+网址:[https://hub.daocloud.io](https://hub.daocloud.io/)
+
+![alt](imgs/docker-daocloud-mysql.png)
+
+当然，你也可以选择https://hub.docker.com/ 来查找镜像。
+
+
+
+#### 具体安装步骤讲解
+
+[docker命名规范](https://github.com/fanhualei/wukong-framework/blob/master/reference/specification_server.md#docker%E5%91%BD%E5%90%8D%E8%A7%84%E8%8C%83)
+
+[centos上mysql的使用](https://github.com/fanhualei/wukong-bd/blob/master/doc/hive.md#%E5%AE%89%E8%A3%85mysql)
+
+
+
+
+
+##### 安装mysql
+
+wordpress 网站上说只能用mysql5.6 ,我下载的最新镜像是MySQL8，会连接不上。
+
+```shell
+docker pull mysql:5.6
+docker images
+docker run -d --name test-mysql -e MYSQL_ROOT_PASSWORD=123456 mysql:5.6 
+
+# 创建一个数据库wp
+docker exec test-mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e"create database wp"' 
+
+
+# 用宿主机的Mysql进行登录容器的mysql
+docker exec -it test-mysql mysql -uroot -p123456
+
+# 登录到容器的机器上
+docker exec -it test-mysql  /bin/bash
+```
+
+
+
+##### 安装nginx-php
+
+https://hub.docker.com/r/richarvey/nginx-php-fpm
+
+```shell
+# 建立了一个link ,同时把文件放到了宿主的目录中，放出来一个88
+$ docker run -d --name test-web --link test-mysql:dbhost -p 88:80 -v /container_data/web:/var/www/html richarvey/nginx-php-fpm
+
+docker exec -it test-web  /bin/bash
+
+# 建立一个html文件
+$ cd /container_data/web
+$ vi a.html
+# 访问宿主的地址88
+http://192.168.56.102:88/a.html
+```
+
+![alt](imgs/docker-web-88.png)
+
+###### link的作用
+
+![alt](imgs/docker-link-hosts.png)
+
+
+
+
+
+##### 安装wordpress
+
+```shell
+# 进入宿主机的外挂目录
+cd /container_data
+#下载wordpress
+yum install wget
+wget https://cn.wordpress.org/latest-zh_CN.tar.gz
+# 解压
+tar -zxvf latest-zh_CN.tar.gz
+# 复制到web目录
+mv wordpress/* /container_data/web/ 
+
+# 重启 test-web 这个很重要,不然连接不上数据库
+docker restart test-web
+
+```
+
+注意：如果宿主机器上有防火墙，那么需要将88端口给开放出来。
+
+
+
+> 访问宿主机的88端口
+
+![alt](imgs/docker-wordpress-web-admin.png)
+
+
+
+![alt](imgs/docker-wordpress-step2.png)
+
+
+
+![alt](imgs/docker-wordpress-now-install.png)
+
+
+
+![alt](imgs/docker-wordpress-set-pawd.png)
+
+![alt](imgs/docker-wordpress-login.png)
+
+
+
+![alt](imgs/docker-word-press-admin.png)

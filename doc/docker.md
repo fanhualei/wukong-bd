@@ -724,6 +724,12 @@ docker exec web01 ls /data
 
 
 
+
+
+
+
+
+
 ### 案例: mysql安装 
 
 删除所有容器,如果你做测试，里面有很多容器，可以全部删除，这个命令慎用
@@ -738,6 +744,8 @@ docker exec web01 ls /data
 * 数据库的备份与恢复
 
 
+
+[mysql主从配置实现一主一从读写分离](https://blog.51cto.com/13910274/2172910)
 
 #### 安装第一个mysql
 
@@ -780,6 +788,21 @@ mysql -h dbhost -uroot -p123456
 
 
 注：如果你从第一个mysql01 可以通过地址，连接到第二个服务器：mysql -h 172.17.0.4 -uroot -p123456
+
+
+
+### 案例：配置mysql主从数据库
+
+主从数据库速度比较快，用的人也很多，做为练习可以参考：[mysql 主从数据库配置](mysql-replication.md)
+
+mysql的集群也非常好用，同时docker 提供了mysql集群的安装。
+
+* [docker简易搭建MySQL集群](https://blog.csdn.net/belonghuang157405/article/details/80808541)
+* [docker安装mysql，以及主从和主备切换](https://blog.csdn.net/qq_33562996/article/details/80568628)
+* [主流MySQL集群实现架构优劣势与适用场景分析](https://blog.csdn.net/u012974916/article/details/53118941)
+* [在docker下搭建MySQL MHA集群](https://www.jianshu.com/p/d00d17797855)
+
+
 
 
 

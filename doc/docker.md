@@ -8,7 +8,7 @@
 
 
 
-## 介绍
+## 1. 介绍
 
 
 
@@ -50,7 +50,7 @@
 
 
 
-## 安装
+## 2. 安装
 
 
 
@@ -85,7 +85,7 @@ $ systemctl enable docker.service && service docker start
 
 
 
-## 镜像管理
+## 3. 镜像管理
 
 
 
@@ -298,7 +298,7 @@ $ docker load -i ubuntu_self.tar
 
 
 
-## 容器管理
+## 4. 容器管理
 
 
 
@@ -961,7 +961,7 @@ docker restart test-web
 
 
 
-## 网络管理
+## 5. 网络管理
 
 
 
@@ -1153,26 +1153,46 @@ $ firewall-cmd --zone=public --add-port=80/tcp --permanent
 
 
 
+#### 使用overlay模式 
+
+这个可以跨多个docker主机。使用了`docker swarm`技术，这个技术与`k8`有重复的地方，这里就不详细介绍这种技术了，具体看`k8`
+
+
+
+#### 使用macvlan模式
+
+也是跨多个主机的技术，这个是在硬件网卡上做配置，好处是速度快，坏处是很多云服务商不支持，并且数量有限制。
 
 
 
 
 
+### 常见问题
 
-
-
-
-
-应用的场景：
-
-* [docker pipework 实现跨宿主主机容器互联](https://blog.51cto.com/13941177/2296529)
 * [docker设置固定ip地址](https://www.cnblogs.com/xuezhigu/p/8257129.html)
   * 默认，容器启动后ip地址会变化
 * 在已经建立好的容器中，如何添加与宿足机的端口映射。 例如生成一个nginx如何映射出80?
-* 如何配置一个ip与宿主机器是一个网段。
-* 如何将本地的docker分成两个不同的网段，网段内的机器可以访问，网段外的机器不能访问。
-* 一个容器可以配置多个ip吗? 一个连接内部网段，一个连接外网。
-* 创建一个容器，感觉就想虚拟机一样，可以通过ssh连接。
+* 如何配置一个ip与宿主机器是一个网段。（见官方例子）
+* 如何将本地的docker分成两个不同的网段，网段内的机器可以访问，网段外的机器不能访问。（见官方例子）
+* 一个容器可以配置多个ip吗? 一个连接内部网段，一个连接外网。（见官方例子）
+* 创建一个容器，感觉就想虚拟机一样，可以通过ssh连接。（见dockerfile中的ssh例子）
+
+
+
+
+
+> 追加映射端口有三种方法
+
+* 修改改容器文件
+  * [docker修改映射端口](https://www.jianshu.com/p/02b2f30ed6cb)
+  * [【docker】追加docker容器端口映射的方法](https://www.cnblogs.com/richerdyoung/p/10154753.html)
+* iptables转发端口(不建议用)
+* 保存镜像，然后再追加端口
+  * [Docker给运行中的容器添加映射端口-是同了另外两种方法](https://www.cnblogs.com/fansik/p/6518423.html)
+
+
+
+以上方法实现成功了，可以添加一个脚本用来做这个事情。
 
 
 
@@ -1182,17 +1202,11 @@ $ firewall-cmd --zone=public --add-port=80/tcp --permanent
 docker run -itd --name net-01 --network bridge --ip 172.17.0.2 ubuntu /bin/bash
 ```
 
-
-
-
-
-
+不能使用默认的`bridge`，需要自定义一个网络
 
 
 
 ### 安装centos
-
-
 
 ```shell
 # 下载镜像
@@ -1212,105 +1226,194 @@ ifconfig
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-docker 网络管理是一个难点，主要内容
-
-* 网络模式
-* 容器访问原理
-* 不同宿主机之间连接
-* 将容器以虚拟机的形式提供给其他人用
-
-
-
-### 网络模式
-
-以centos7为基础来进行组网。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Docker支持五种网络模式
-
-* bridge （默认网络）
-  * Docker启动后创建一个docker0网桥，默认创建的容器也是添加到这个网桥中；IP地址段是172.17.0.1/16
-
-* host
-  *  容器不会获得一个独立的network namespace，而是与宿主机共用一个。 
-* none 
-  * 获取独立的network namespace，但不为容器进行任何网络配置。 
-  * 如果要上网，需要手工配置网络信息
-* container 
-  * 与指定的容器使用同一个network namespace，网卡配置也都是相同的。 
-  * 应用场景很少，不建议用
-* 自定义 
-  * 自定义网桥，默认与bridge网络一样。
-
-
-
-#### 具体实践
+### 具体实践
 
 安装完docker会在宿主机器上建立一个网络，可以使用`ifoncig`
 
 ![alt](imgs/docker-new-suzuji.png)
 
-
-
-brctl show
-
-容器会将宿主机的网桥加入
+常用的两个命令：
 
 docker inspet
-
-
 
 docker network ls
 
 
 
-* iptables
-  * filter
-  * net
-  * mangle
-  * raw
+[Docker 图形化页面管理工具使用](https://www.cnblogs.com/frankdeng/p/9686735.html)
 
 
 
-* iptables -t  nat -nl  查看当前机器网络规则
+
+
+## 6. DockerFile
 
 
 
-#### 常见问题
+![alt](imgs/docker-file-make.png)
 
 
 
-* 如何给一个给一个已经安装的docker，开放宿主机映射？忘记-p了
-  * iptables -t nat -A PREROUTING -d 192.168.1.213 -p  tcp --dport 89 -j DNAT -- to 172.17.0.3:80
-    * 192是宿主机的Ip  172是容器的Ip
-  * iptables -t nat -nl
-    * 可以看到宿主机上 的映射
+官网给出的一些脚本
+
+```shell
+docker build -t friendlyhello .  # Create image using this directory's Dockerfile
+docker run -p 4000:80 friendlyhello  # Run "friendlyhello" mapping port 4000 to 80
+docker run -d -p 4000:80 friendlyhello         # Same thing, but in detached mode
+docker container ls                                # List all running containers
+docker container ls -a             # List all containers, even those not running
+docker container stop <hash>           # Gracefully stop the specified container
+docker container kill <hash>         # Force shutdown of the specified container
+docker container rm <hash>        # Remove specified container from this machine
+docker container rm $(docker container ls -a -q)         # Remove all containers
+docker image ls -a                             # List all images on this machine
+docker image rm <image id>            # Remove specified image from this machine
+docker image rm $(docker image ls -a -q)   # Remove all images from this machine
+docker login             # Log in this CLI session using your Docker credentials
+docker tag <image> username/repository:tag  # Tag <image> for upload to registry
+docker push username/repository:tag            # Upload tagged image to registry
+docker run username/repository:tag                   # Run image from a registry
+```
+
+
+
+
+
+#### Wordpress环境
+
+> Dockerfile
+
+```dockerfile
+FROM centos
+
+MAINTAINER lexiaoyao
+
+RUN yum install -y httpd php php-gd php-mysql mysql mysql-server
+
+ENV MYSQL_ROOT_PASSWORD 123456
+
+RUN echo "<?php phpinfo()?>" > /var/www/html/index.php
+
+ADD start.sh /start.sh RUN chmod +x /start.sh
+
+
+ADD https://cn.wordpress.org/wordpress-4.7.4-zh_CN.tar.gz /var/www/html
+
+COPY wp-config.php /var/www/html/wordpress
+
+
+VOLUME ["/var/lib/mysql"]
+
+
+CMD /start.sh
+
+
+EXPOSE 80 3306
+
+```
+
+
+
+>  start.sh 
+
+```sh
+service httpd 
+start service mysqld 
+start mysqladmin -uroot password $MYSQL_ROOT_PASSWORD 
+tail -f
+```
+
+
+
+> wp-config.php
+
+略
+
+
+
+#### Tomcat网站
+
+
+
+```dockerfile
+FROM centos:6 
+
+MAINTAINER lexiaoyao
+
+ADD jdk-8u45-linux-x64.tar.gz /usr/local  # 本地已经下载的文件
+
+ENV JAVA_HOME /usr/local/jdk1.8.0_45
+
+ADD http://mirrors.tuna.tsinghua.edu.cn/apache/tomcat/tomcat-8/v8.0.45/bin/apachetomcat-8.0.45.tar.gz /usr/local
+
+WORKDIR /usr/local/apache-tomcat-8.0.45 
+
+ENTRYPOINT ["bin/catalina.sh", "run"]
+EXPOSE 8080
+
+```
+
+
+
+#### 可SSH登录的容器
+
+centos默认是安装了ssh服务，这里就做了一个测试
+
+
+
+##### 第一步、建立一个目录
+
+```shell
+mkdir dockerfile-ssh
+```
+
+
+
+##### 第二步、编辑Dockerfile
+
+执行命令`vi Dockerfile`，并编辑脚本
+
+
+
+```dockerfile
+FROM centos
+
+MAINTAINER lexiaoyao 
+
+ENV ROOT_PASSWORD 123456
+
+RUN yum install -y openssh-server 
+
+RUN echo $ROOT_PASSWORD |passwd --stdin root
+
+RUN ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key  
+RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key  
+
+CMD ["/usr/sbin/sshd", "-D"]
+
+EXPOSE 22
+
+```
+
+
+
+
+
+##### 第三步、创建镜像
+
+
+
+```shell
+docker build -t ssh .
+```
+
+
+
+
+
+##### 第四步、创建容器
+
+```
+docker run -itd --name ssh -p 2222:22 ssh
+```
+

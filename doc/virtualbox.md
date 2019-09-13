@@ -1,4 +1,4 @@
-# VirtualBox+Vagrant虚拟机安装
+# c'dVirtualBox+Vagrant虚拟机安装
 
 我是在win10机器上安装centos的。
 
@@ -34,6 +34,28 @@
 ## 2：配置网络
 
 目标是`虚拟机`可以访问网络，并且`主机`可以访问虚拟机。网上的教程写的太乱，实际很简单。
+
+
+
+安装centos时，要配置网络，不然访问不了外网。
+
+如果忘记启动网络，需要进入命令行，启动网络`nmtui `。[如何为CentOS 7配置静态IP地址](https://www.linuxidc.com/Linux/2014-10/107789.htm)
+
+![alt](imgs/vmbox-centos-install-net.png)
+
+
+
+
+
+说明：CentOS 7.0默认安装好之后是没有自动开启网络连接的！
+
+```
+cd  /etc/sysconfig/network-scripts/
+vi  ifcfg-eno16777736
+可以添加内容
+service network restart   #重启网络
+ping www.baidu.com  #测试网络是否正常
+```
 
 
 
@@ -105,7 +127,7 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 
 
-### 2.2：优化网络配置
+### 2.2：优化网络配置host-only
 
 如果你感觉转发不爽，也可以使用直连的方式，当然刚才的`ant`模式不能删除，不然访问不了外网。
 
@@ -131,21 +153,81 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 > 不用转发登录虚拟主机
 
+```shell
+ #安装ifcconfig
+ yum install net-tools.x86_64 
+```
+
+
+
 在主机上`ping`虚拟主机，可以ping通，那么也可以通过`putty`来远程登录到虚拟主机
 
 ![alt](imgs/net-hostonly-03-ping.png)
 
 
 
-> 固定IP 
+#### 2.2.1 固定IP 
 
 现在都是动态IP，有可能重启后，就找不到这个IP了，这样就不好登录了，所以可以将`192.168.56.102`这个IP固定了。 可以这么来设置
 
-我发现没有找到那个网卡配置文件，所以就没有去配置，网上有人说新建立一个文件就行，我也没有新建立文件。
+有网友这么说，来固定ip
 
-参考：[Centos系统如何设置固定IP](https://jingyan.baidu.com/article/6c67b1d65127692787bb1ef3.html)
+[Virtualbox+Centos 7虚拟机设置host-only网卡的静态IP地址](https://blog.csdn.net/yongge1981/article/details/78903886)
 
-无法配置
+我具体的操作如下：
+
+```shell
+cd /etc/sysconfig/network-scripts
+cp ifcfg-enp0s3 ifcfg-enp0s8
+vi ifcfg-enp0s8
+service network restart
+```
+
+![alt](imgs/vbox-net-e8.png)
+
+```
+TYPE="Ethernet"
+PROXY_METHOD="none"
+BROWSER_ONLY="no"
+BOOTPROTO="static"
+DEFROUTE="yes"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="yes"
+IPV6_AUTOCONF="yes"
+IPV6_DEFROUTE="yes"
+IPV6_FAILURE_FATAL="no"
+IPV6_ADDR_GEN_MODE="stable-privacy"
+NAME="enp0s8"
+UUID="f33d60b5-4afe-6ff9-b20e-662e819e8739"
+DEVICE="enp0s8"
+ONBOOT="yes"
+
+
+IPADDR=192.168.56.105
+NETMASK=255.255.255.0
+GATEWAY=192.168.56.1
+
+```
+
+
+
+#### 2.2.2 通过镜像复制虚拟机
+
+假设已经安装了一台虚拟机centos02
+
+* 关闭centos02
+
+* 通过【导出虚拟电脑】，对centos02进行备份，中间啥都不用改。
+* 通过【导入虚拟电脑】，中间将有centos02的地方修改成centos03
+* 启动centos03，并配置网络ifcfg-enp0s8，有两个地方要修改
+  * IPADDR =192.168.56.106
+  * UUID 改成与其他不同就可以了
+* 启动centos02
+* 分别进行互ping，看看通不通
+
+![alt](imgs/vbox-start-3box.png)
+
+
 
 ## 3：使用VirtualBox
 

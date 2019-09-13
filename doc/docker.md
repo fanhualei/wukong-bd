@@ -1,7 +1,3 @@
-
-
-
-
 # Docker
 
 如果你就想简单的使用，那么花10分钟看这个文档。[10分钟学会使用docker](https://github.com/fanhualei/wukong-framework/blob/master/reference/docker.md)
@@ -960,3 +956,361 @@ docker restart test-web
 
 
 ![alt](imgs/docker-word-press-admin.png)
+
+
+
+
+
+## 网络管理
+
+
+
+### 官方例子
+
+[官方网络管理文档](https://docs.docker.com/network/network-tutorial-standalone/)
+
+#### 使用brige模式
+
+涉及独立Docker容器的网络连接。宿主端不能访问brige模式下的docker容器
+
+##### 使用默认桥接网络(不建议在生产环境中用)
+
+```shell
+# 列出当前网络
+docker network ls
+
+#启动两个alpine容器运行ash，这是Alpine的默认shell而不是bash.
+#未指定任何 --network标志，因此容器将连接到默认bridge网络。
+docker run -dit --name alpine1 alpine ash
+docker run -dit --name alpine2 alpine ash
+
+#检查两个容器是否实际启动
+docker container ls
+
+#检查bridge网络以查看连接到它的容器
+docker network inspect bridge
+
+#使用docker attach 命令连接到alpine1
+docker attach alpine1
+
+#使用该ip addr show命令显示alpine1容器内的网络接口
+alpine1> ip addr show
+
+# 确保alpine1可以通过ping连接到互联网
+alpine1> ping -c 2 www.baidu.com
+
+# 现在尝试ping第二个容器。首先，通过其IP地址ping它
+alpine1> ping -c 2 172.17.0.3
+
+#这成功了。接下来，尝试alpine2按容器名称ping 容器。这将失败。
+alpine1> ping -c 2 alpine2
+
+#停止并移除两个容器。
+alpine1>exit
+docker container stop alpine1 alpine2
+docker container rm alpine1 alpine2
+```
+
+请记住，`bridge`不建议将默认网络用于生产。要了解用户定义的桥接网络，请继续学习 [下一个教程](https://docs.docker.com/network/network-tutorial-standalone/#use-user-defined-bridge-networks)。
+
+
+
+##### 使用用户定义的网桥
+
+在此示例中，我们再次启动两个`alpine`容器，但将它们附加到`alpine-net`我们已创建的用户定义的网络中。这些容器根本没有连接到默认`bridge`网络。然后我们启动第三个`alpine`连接到`bridge`网络但未连接的容器`alpine-net`，以及`alpine`连接到两个网络的第四个容器。
+
+![alt](imgs/docker-net-brige.png)
+
+```shell
+#创建alpine-net网络。您不需要该--driver bridge标志，因为它是默认值，但此示例显示了如何指定它。
+docker network create --driver bridge alpine-net
+
+#列出Docker的网络：
+docker network ls
+
+#检查alpine-net网络。这将显示其IP地址以及没有容器连接到它的事实：
+#请注意，此网络的网关与网关172.18.0.1的默认网桥相对172.17.0.1。您的系统上的确切IP地址可能有所不同。
+docker network inspect alpine-net
+
+#创建您的四个容器。注意--network标志。您只能在docker run命令期间连接到一个网络，因此您需要在 docker network connect以后连接alpine4到bridge 网络。
+docker run -dit --name alpine1 --network alpine-net alpine ash
+docker run -dit --name alpine2 --network alpine-net alpine ash
+docker run -dit --name alpine3 alpine ash
+docker run -dit --name alpine4 --network alpine-net alpine ash
+docker network connect bridge alpine4
+
+#验证所有容器是否正在运行：
+docker container ls
+
+#再次检查bridge网络和alpine-net网络：容器alpine3并alpine4连接到bridge网络。
+docker network inspect bridge
+
+#docker network inspect alpine-net  容器alpine1，alpine2和alpine4连接到 alpine-net网络。
+docker network inspect alpine-net
+
+#在用户定义的网络上alpine-net，容器不仅可以通过IP地址进行通信，还可以将容器名称解析为IP地址。此功能称为自动服务发现。让我们连接alpine1并测试一下。alpine1应该能够解析 alpine2和alpine4（和alpine1本身）IP地址。
+ docker container attach alpine1
+ alpine1> ping -c 2 alpine2
+ alpine1> ping -c 2 alpine4
+ alpine1> ping -c 2 alpine1
+ # 从alpine1，你根本不应该连接alpine3，用ip地址也不行，因为它不在alpine-net网络上。
+ alpine1> ping -c 2 alpine3
+ 
+ # ping: bad address 'alpine3'
+ alpine1> ping -c 2 172.17.0.3
+ alpine1> ping -c 2 172.17.0.2
+
+#断开alpine1使用分离序列， CTRL+ p CTRL+ q（按住CTRL并键入p后跟q）。
+```
+
+
+
+> 跨网络连接
+
+请记住，`alpine4`它连接到默认`bridge`网络和`alpine-net`。它应该能够到达所有其他容器。但是，您需要`alpine3`通过其IP地址进行寻址。连接到它并运行测试。
+
+```shell
+#
+docker container attach alpine4
+alpine4> ping -c 2 alpine1
+
+alpine4> ping -c 2 alpine2
+
+# 不能通过名字来ping ping: bad address 'alpine3',但是可以ping ip地址
+alpine4> ping -c 2 alpine3
+
+alpine4> ping -c 2 172.17.0.2
+
+# ping 自己
+alpine4> ping -c 2 alpine4
+
+#断开alpine4使用分离序列， CTRL+ p CTRL+ q（按住CTRL并键入p后跟q）。
+```
+
+
+
+> 停止并删除所有容器和`alpine-net`网络。
+
+```shell
+docker container stop alpine1 alpine2 alpine3 alpine4
+docker container rm alpine1 alpine2 alpine3 alpine4
+docker network rm alpine-net
+```
+
+
+
+#### 使用host模式
+
+我感觉host模式用途不大，为啥不做端口转发呢？
+
+host模式，将宿主的配置，直接复制到自己的机器上
+
+##### 目标
+
+目标是启动一个`nginx`直接绑定到Docker主机上的端口80 的容器。从网络的角度来看，这与隔离级别相同，就好像`nginx`进程直接在Docker主机上运行而不是在容器中运行一样。但是，在所有其他方式（例如存储，进程命名空间和用户命名空间）中，`nginx`进程与主机隔离。
+
+##### 先决条件
+
+- 此过程要求端口80在Docker主机上可用。要使Nginx侦听其他端口，请参阅[该](https://hub.docker.com/_/nginx/)[图像](https://hub.docker.com/_/nginx/)的 [文档`nginx`](https://hub.docker.com/_/nginx/)
+
+```shell
+[root@centos01 ~]# curl localhost
+curl: (7) Failed connect to localhost:80; 拒绝连接
+```
+
+
+
+##### 具体操作
+
+```shell
+
+# 创建并启动容器作为分离进程。该--rm选项意味着一旦退出/停止就移除容器。该-d标志表示启动容器分离（在后台）。
+docker run --rm -d --network host --name my_nginx nginx
+
+# 通过浏览到http：// localhost：80 /来访问Nginx 。
+curl localhost
+
+# ip addr show
+
+# 查看host情况
+docker network inspect host
+
+# 使用该netstat命令验证哪个进程绑定到端口80 。您需要使用，sudo因为该进程由Docker守护程序用户拥有，否则您将无法看到其名称或PID。
+netstat -tulpn | grep :80
+
+#停止容器。它将在使用该--rm选项启动时自动删除。
+docker container stop my_nginx
+```
+
+如果想让外网访问宿主机，需要将宿主机器的防火墙给关闭了。
+
+```shell
+# 开放端口 80
+$ firewall-cmd --zone=public --add-port=80/tcp --permanent
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+应用的场景：
+
+* [docker pipework 实现跨宿主主机容器互联](https://blog.51cto.com/13941177/2296529)
+* [docker设置固定ip地址](https://www.cnblogs.com/xuezhigu/p/8257129.html)
+  * 默认，容器启动后ip地址会变化
+* 在已经建立好的容器中，如何添加与宿足机的端口映射。 例如生成一个nginx如何映射出80?
+* 如何配置一个ip与宿主机器是一个网段。
+* 如何将本地的docker分成两个不同的网段，网段内的机器可以访问，网段外的机器不能访问。
+* 一个容器可以配置多个ip吗? 一个连接内部网段，一个连接外网。
+* 创建一个容器，感觉就想虚拟机一样，可以通过ssh连接。
+
+
+
+### 固定IP地址
+
+```
+docker run -itd --name net-01 --network bridge --ip 172.17.0.2 ubuntu /bin/bash
+```
+
+
+
+
+
+
+
+
+
+### 安装centos
+
+
+
+```shell
+# 下载镜像
+docker pull centos
+
+# 生成一个容器
+docker run -itd --name centos01 centos /bin/bash
+
+# 进入容器
+docker exec -it centos01  /bin/bash
+
+# 安装ifconfig
+yum install net-tools
+
+ifconfig
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+docker 网络管理是一个难点，主要内容
+
+* 网络模式
+* 容器访问原理
+* 不同宿主机之间连接
+* 将容器以虚拟机的形式提供给其他人用
+
+
+
+### 网络模式
+
+以centos7为基础来进行组网。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Docker支持五种网络模式
+
+* bridge （默认网络）
+  * Docker启动后创建一个docker0网桥，默认创建的容器也是添加到这个网桥中；IP地址段是172.17.0.1/16
+
+* host
+  *  容器不会获得一个独立的network namespace，而是与宿主机共用一个。 
+* none 
+  * 获取独立的network namespace，但不为容器进行任何网络配置。 
+  * 如果要上网，需要手工配置网络信息
+* container 
+  * 与指定的容器使用同一个network namespace，网卡配置也都是相同的。 
+  * 应用场景很少，不建议用
+* 自定义 
+  * 自定义网桥，默认与bridge网络一样。
+
+
+
+#### 具体实践
+
+安装完docker会在宿主机器上建立一个网络，可以使用`ifoncig`
+
+![alt](imgs/docker-new-suzuji.png)
+
+
+
+brctl show
+
+容器会将宿主机的网桥加入
+
+docker inspet
+
+
+
+docker network ls
+
+
+
+* iptables
+  * filter
+  * net
+  * mangle
+  * raw
+
+
+
+* iptables -t  nat -nl  查看当前机器网络规则
+
+
+
+#### 常见问题
+
+
+
+* 如何给一个给一个已经安装的docker，开放宿主机映射？忘记-p了
+  * iptables -t nat -A PREROUTING -d 192.168.1.213 -p  tcp --dport 89 -j DNAT -- to 172.17.0.3:80
+    * 192是宿主机的Ip  172是容器的Ip
+  * iptables -t nat -nl
+    * 可以看到宿主机上 的映射

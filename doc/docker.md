@@ -48,6 +48,14 @@
 
 
 
+### kubernetes
+
+
+
+docker自己推荐：machine+swarm+compose。被kubernetes打败了。
+
+
+
 
 
 ## 2. 安装
@@ -300,9 +308,23 @@ $ docker load -i ubuntu_self.tar
 
 ## 4. 容器管理
 
+```shell
+# 得到test01 ip地址
+docker inspect -f {{.NetworkSettings.IPAddress}} test01
+
+# 用一个容器做为基础容器，其他容器复制这个容器的 network volumes
+docker run --name infracon -it -v /dtat/infracon/volume:/data/web/html busybox
+
+docker run --name nginx --netword container:infracon --volumes-from infracon -it busybox
 
 
-### 创建容器
+```
+
+
+
+
+
+### 4.1 创建容器
 
 使用 `docker run --help` 来看相关命令的使用方法
 
@@ -539,7 +561,7 @@ $ docker run -itd -m 10240000 utuntu
 
 
 
-### 容器常用管理命令
+### 4.2 容器常用管理命令
 
 ```shell
 # 删除所有容器,如果你做测试，里面有很多容器，可以全部删除，这个命令慎用
@@ -666,7 +688,7 @@ docker diff test01
 
 
 
-### 容器数据持久化
+### 4.3 容器数据持久化
 
 一个容器被删除后，数据也会被删除，那么怎么才能将数据保存下来呢？
 
@@ -726,7 +748,7 @@ docker exec web01 ls /data
 
 
 
-### 案例: mysql安装 
+### 4.4 案例: mysql安装 
 
 删除所有容器,如果你做测试，里面有很多容器，可以全部删除，这个命令慎用
 
@@ -787,7 +809,7 @@ mysql -h dbhost -uroot -p123456
 
 
 
-### 案例：配置mysql主从数据库
+### 4.5 案例：配置mysql主从数据库
 
 主从数据库速度比较快，用的人也很多，做为练习可以参考：[mysql 主从数据库配置](mysql-replication.md)
 
@@ -802,7 +824,7 @@ mysql的集群也非常好用，同时docker 提供了mysql集群的安装。
 
 
 
-### 案例：使用docker安装wordpress
+### 4.6 案例：使用docker安装wordpress
 
 
 
@@ -965,7 +987,50 @@ docker restart test-web
 
 
 
-### 官方例子
+### 5.0 网络基本知识
+
+
+
+```shell
+# 一个网络工具
+yum -y install bridge-utils
+brctl show
+ip link show
+docker network ls
+
+
+# 创建一对虚拟网卡（下面命令不全，可以网上搜索）
+ip link add name veth1.1 type weth peer name veth1.2
+
+ip link show
+
+ip link set dev veth1.2 netns r1
+
+ip link show
+
+ip netns exec r1 ifconfig -a
+
+ip netns exec r1 ip link set dev veth1.2 name eth0
+
+ip netns exec r1 ifconfig -a
+
+# 激活
+ifconfig veth1.1 10.1.0.1/24 up
+ip netns exec r1 ifconfig eth0 10.1.0.2/24 up
+
+# busybox 一个用来测试的镜像，很小
+docker run -it --rm busybox
+```
+
+
+
+> 参考文档
+
+* [实验一：通过bridge-utils工具创建网桥并实现网络连接](https://www.cnblogs.com/BurnovBlog/p/10738619.html)
+
+
+
+### 5.1 *官方例子
 
 [官方网络管理文档](https://docs.docker.com/network/network-tutorial-standalone/)
 
@@ -1159,6 +1224,10 @@ $ firewall-cmd --zone=public --add-port=80/tcp --permanent
 
 
 
+添加了一个docker service ，然后在不同的物理机器上建立的容器，会有两个网络地址，其中一个地址，可以访问其他物理机上相同网络的机器。
+
+
+
 #### 使用macvlan模式
 
 也是跨多个主机的技术，这个是在硬件网卡上做配置，好处是速度快，坏处是很多云服务商不支持，并且数量有限制。
@@ -1167,7 +1236,7 @@ $ firewall-cmd --zone=public --add-port=80/tcp --permanent
 
 
 
-### 常见问题
+### 5.2 常见问题
 
 * [docker设置固定ip地址](https://www.cnblogs.com/xuezhigu/p/8257129.html)
   * 默认，容器启动后ip地址会变化
@@ -1196,7 +1265,7 @@ $ firewall-cmd --zone=public --add-port=80/tcp --permanent
 
 
 
-### 固定IP地址
+### 5.3 固定IP地址
 
 ```
 docker run -itd --name net-01 --network bridge --ip 172.17.0.2 ubuntu /bin/bash
@@ -1206,7 +1275,7 @@ docker run -itd --name net-01 --network bridge --ip 172.17.0.2 ubuntu /bin/bash
 
 
 
-### 安装centos
+### 5.4 安装centos
 
 ```shell
 # 下载镜像
@@ -1226,7 +1295,7 @@ ifconfig
 
 
 
-### 具体实践
+### 5.5 具体实践
 
 安装完docker会在宿主机器上建立一个网络，可以使用`ifoncig`
 
@@ -1237,12 +1306,6 @@ ifconfig
 docker inspet
 
 docker network ls
-
-
-
-[Docker 图形化页面管理工具使用](https://www.cnblogs.com/frankdeng/p/9686735.html)
-
-
 
 
 
@@ -1279,7 +1342,7 @@ docker run username/repository:tag                   # Run image from a registry
 
 
 
-#### Wordpress环境
+#### Wordpress环境示例
 
 > Dockerfile
 
@@ -1331,7 +1394,7 @@ tail -f
 
 
 
-#### Tomcat网站
+#### Tomcat环境示例
 
 
 
@@ -1355,7 +1418,7 @@ EXPOSE 8080
 
 
 
-#### 可SSH登录的容器
+#### 可SSH登录容器环境示例
 
 centos默认是安装了ssh服务，这里就做了一个测试
 
@@ -1416,4 +1479,712 @@ docker build -t ssh .
 ```
 docker run -itd --name ssh -p 2222:22 ssh
 ```
+
+
+
+
+
+## 7. 搭建仓库
+
+
+
+### 7.1 私有仓库
+
+Docker Hub作为Docker默认官方公共镜像；如果想自己搭建私有镜像仓库，官方也提供registry镜像，使得搭建私有仓 库非常简单。
+
+#### 下载registry镜像并启动 
+
+```shell
+docker pull registry 
+
+docker run -d -v /opt/registry:/var/lib/registry -p 5000:5000 --restart=always --name registry registry
+```
+
+
+
+#### 测试，查看镜像仓库中所有镜像 
+
+```shell
+curl http://192.168.1.120:5000/v2/_catalog 
+
+#{"repositories":[]}
+```
+
+
+
+#### 配置私有仓库可信任
+
+```shell
+vi /etc/docker/daemon.json
+
+#{"insecure-registries":["192.168.1.120:5000"]} 
+
+service docker restart 
+```
+
+
+
+#### 打标签 
+
+```shell
+docker tag centos:6 192.168.1.120:5000/centos:6 
+```
+
+
+
+#### 上传 
+
+```shell
+docker push 192.168.1.120:5000/centos:6 
+```
+
+
+
+#### 下载 
+
+```shell
+docker pull 192.168.1.120:5000/centos:6
+```
+
+ 
+
+#### 列出镜像标签 
+
+```shell
+curl http://192.168.1.120:5000/v2/centos/tags/list
+```
+
+
+
+### 7.2 共有仓库
+
+
+
+1、注册账号 https://hub.docker.com 
+
+2、登录Docker Hub 
+
+```shell
+# 
+docker login  
+#或 
+docker login --username=aaa --password=123456 
+```
+
+
+
+3、镜像打标签
+
+```shell
+docker tag wordpress:v1 lizhenliang/wordpress:v1 
+```
+
+
+
+4、上传 
+
+```shell
+docker push lizhenliang/wordpress:v1
+#搜索测试：  
+docker search lizhenliang 
+```
+
+ 
+
+5、下载 
+
+```shell
+docker pull lizhenliang/wordpress:v1
+```
+
+
+
+
+
+## 8. 图像化界面
+
+有两个
+
+1、DockerUI
+2、Shipyard（推荐使用）
+
+[Docker 图形化页面管理工具使用](https://www.cnblogs.com/frankdeng/p/9686735.html)
+
+
+
+### DockerUI
+
+用的人不多，了解就行。[官方地址](https://hub.docker.com/r/abh1nav/dockerui)
+
+
+
+### Shipyard
+
+**这个可以管理一个集群，通过web页面，就可以操作docker集群**
+
+Shipyard也是基于Docker API实现的容器图形管理系统，支持container、images、engine、cluster等功能，可满足我 们基本的容器部署需求。
+Shipyard分为手动部署和自动部署。
+
+![alt](imgs/docker-shipyard.png)
+
+[官方部署文档](https://www.shipyard-project.com/docs/deploy/)
+
+
+
+
+
+## 9. 构建容器的监控系统
+
+
+
+详细说明： [cAdvisor+InfluxDB+Grafana 监控Docker](https://www.cnblogs.com/zhujingzhi/p/9844558.html)
+
+
+
+`cAdvisor+InfluxDB+Grafana`
+
+* **cAdvisor**
+
+​	Google开源的工具，用于监控Docker主机和容器系统资源，通过图形页面实时显示数据，但不存储；它通过 宿主机/proc、/sys、/var/lib/docker等目录下文件获取宿主机和容器运行信息。 
+
+* **InfluxDB**
+
+  是一个分布式的时间序列数据库，用来存储cAdvisor收集的系统资源数据。 
+
+* **Grafana**
+
+  可视化展示平台，可做仪表盘，并图表页面操作很方面，数据源支持zabbix、Graphite、InfluxDB、 OpenTSDB、Elasticsearch等
+
+* 它们之间关系
+
+   cAdvisor容器数据采集->InfluxDB容器数据存储->Grafana可视化展示
+
+
+
+### 
+
+
+
+influxdb 
+
+```shell
+docker run 
+\ -d 
+\ -p 8083:8083 
+\ -p 8086:8086 
+\ --name influxdb tutum/influxdb
+
+```
+
+
+
+cadvisor 
+
+```shell
+docker run -d 
+\ --volume=/:/rootfs:ro 
+\ --volume=/var/run:/var/run:rw 
+\ --volume=/sys:/sys:ro 
+\ --volume=/var/lib/docker/:/var/lib/docker:ro 
+\ --link influxdb:influxdb 
+\ -p 8081:8080 
+\ --name=cadvisor 
+\ google/cadvisor:latest 
+\ -storage_driver=influxdb 
+\ -storage_driver_db=cadvisor 
+\ -storage_driver_host=influxdb:8086
+
+```
+
+
+
+
+
+grafana 
+
+```shell
+docker run -d 
+\ -p 3000:3000 
+\ -e INFLUXDB_HOST=influxdb 
+\ -e INFLUXDB_PORT=8086 
+\ -e INFLUXDB_NAME=cadvisor 
+\ -e INFLUXDB_USER=cadvisor 
+\ -e INFLUXDB_PASS=cadvisor 
+\ --link influxdb:influxsrv 
+\ --name grafana 
+\ grafana/grafana
+
+```
+
+
+
+## 10. docker高级使用
+
+这里介绍一些工具，了解就行，今后直接跳转到kubernetes
+
+[高级教程](https://www.qikqiak.com/k8s-book/docs/8.Docker Compose.html)
+
+
+
+### compose
+
+Compose是一个定义和管理多容器的工具，使用Python语言编写。使用Compose配置文件描述多个容器应用的架构，比如使用什么镜像、数据卷、网络、映射端口等；然后一条命令管理所有服务，比如启动、停止、重启等。
+
+
+
+官网地址：https://docs.docker.com/compose/
+
+
+
+#### 安装
+
+1.下载二进制文件
+
+可以根据版本号，来下载
+
+```shell
+curl -L https://github.com/docker/compose/releases/download/1.24.1/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+
+
+```
+
+
+
+ 2.对二进制文件添加可执行权限 
+
+```shell
+chmod +x /usr/local/bin/docker-compose
+```
+
+
+
+3.测试安装 
+
+```shell
+docker-compose --version
+```
+
+
+
+也可以使用pip工具安装：pip install docker-compose
+
+
+
+#### YAML文件格式
+
+1. 不支持制表符tab键缩进，需要使用空格缩进
+2.  通常开头缩进2个空格 
+3. 字符后缩进1个空格，如冒号、逗号、横杆 
+4. 用井号注释 
+5. 如果包含特殊字符用单引号引起来 
+6. 布尔值（true、false、yes、no、on、off）必须用引号括起来，这样分析器会将他们解释为字符串。
+
+
+
+#### 使用
+
+![alt](C:\Users\cc2019\AppData\Roaming\Typora\typora-user-images\1568551669330.png)
+
+
+
+
+
+##### 案例：nginx+mysql+php
+
+假设建立一个 nginx+mysql+php的环境
+
+一个compose会创建一个网络，如果连接外边的机器，要使用一个特殊命令。
+
+可以指定启动的顺序
+
+```shell
+# 建立一个compse目录
+mkdir compose_lnmp
+cd compose_lnmp
+
+# 创建一个nginx
+mkdir nginx
+cd nginx
+vi Dockerfile
+
+
+# 创建一个php
+mkdir php
+cd php
+vi Dockerfile
+
+# mysql使用镜像
+
+# 启动服务
+cd ..
+docker-compose up -build
+
+
+```
+
+
+
+通过一个文件，用来编排多个容器一起使用
+
+```yaml
+version: '3'
+services:
+  nginx:
+    hostname: nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    links:
+      - php:php-cgi
+    volumes:
+      - /data/container/web:/usr/local/nginx/html
+      
+  php:
+  	hostname: php
+  	build: ./php
+  	links:
+  	  - mysql:mysql-db
+    volumes:
+      - /data/container/php:/usr/local/nginx/html
+      
+   mysql:
+     hostname:mysql
+     image: mysql:5.6
+     ports:
+       - 3306:3306
+     volumes:
+       - /data/container/msyql/conf:/etc/mysql/conf.d  
+       - /data/container/msyql/data:/var/lib/msyql   
+     environment:
+       MYSQL_ROOT_PASSWORD: 123546
+```
+
+
+
+### swam
+
+docker官方提供了一个集群负载均衡的应用。
+
+
+
+#### 节点规划
+
+```
+操作系统：Ubuntu16.04_x64 
+
+管理节点：192.168.1.110 
+
+工作节点：192.168.1.111 工作节点：192.168.1.112
+```
+
+
+
+#### 管理节点初始化swarm
+
+```shell
+docker swarm init --advertise-addr 192.168.1.110
+```
+
+
+
+####  工作节点加入swarm
+
+```shell
+ docker swarm join --token SWMTKN-1-XXX 192.168.1.110:2377
+```
+
+
+
+#### 服务管理
+
+```shell
+# 创建服务 
+docker service create --replicas 1 --name hello busybox 
+
+# 显示服务详细信息 
+docker service inspect --pretty hello  
+
+# 易于阅读显示 json格式返回 
+docker service inspect hello  
+
+# 扩展服务实例数 
+docker service scale hello=3 
+
+# 查看服务任务  -f是过滤
+docker service ls 
+docker service ps hello 
+docker service ps -f 'desired-state=running' hello 
+
+# 滚动更新服务 
+docker service create 
+\ --replicas 3 
+\ --name redis 
+\ --update-delay 10s 
+\ redis:3.0.6 
+
+docker service update --image redis:3.0.7 redis
+
+# 创建服务时设定更新策略，副本10 更新间隔10s 可以最大2个任务一起更新，如果出现错误那么继续 
+docker service create 
+\ --name my_web 
+\ --replicas 10 
+\ --update-delay 10s 
+\ --update-parallelism 2 
+\ --update-failure-action continue 
+\ nginx:1.12 
+
+# 创建服务时设定回滚策略 ， 故障录20% rollback-max-failure-ratio .2 
+docker service create 
+\ --name my_web 
+\ --replicas 10 
+\ --rollback-parallelism 2 
+\ --rollback-monitor 20s 
+\ --rollback-max-failure-ratio .2 
+\ nginx:1.12 
+
+# 服务更新 
+docker service update --image nginx:1.13 my_web 
+
+# 手动回滚 
+docker service update --rollback my_web 
+
+```
+
+
+
+#### 使用原生Overlay Network
+
+```shell
+# 创建overlay网络 
+docker network create --driver overlay my-network 
+
+# 创建新服务并使用overlay网络 
+docker service create 
+\ --replicas 3 
+\ --network my-network 
+\ --name my-web 
+\ nginx 
+
+# 将现有服务连接到overlay网络 
+docker service update --network-add my-network my-web 
+
+# 删除正在运行的服务网络连接 
+
+docker service update --network-rm my-network my-web
+
+```
+
+
+
+#### 数据持久化
+
+两种方式 volume与bind
+
+volume 
+
+```shell
+# 创建数据卷,dst 容器的某个目录
+docker service create 
+\ --mount type=volume src=<VOLUME-NAME>,dst=<CONTAINER-PATH>
+\ --name myservice 
+\ <IMAGE> 
+
+
+# 查看数据卷详细信息 
+docker volume inspect <VOLUME-NAME> 
+
+# 使用NFS共享存储作为数据卷 
+docker service create 
+\ --mount 'type=volume,src=<VOLUME-NAME>,dst=<CONTAINER-PATH>,volume-driver=local,volumeopt=type=nfs,volume-opt=device=<nfs-server>:<nfs-path>,"volume-opt=o=addr=<nfsaddress>,vers=4,soft,timeo=180,bg,tcp,rw"‘ 
+\ --name myservice 
+\ <IMAGE>
+
+```
+
+
+
+在宿主机器的`/var/lib/docker/volumes/test/_data` 是挂载的，容器的`/data`的内容
+
+```shell
+
+docker service create 
+\ --mount type=volume,src=test,dst=/data 
+\ --name v-hello 
+\ busybox
+
+docker service ls
+
+docker volumes ls
+docker volume inspect test
+```
+
+nfs的安装:[CentOS7下NFS服务安装及配置](https://www.cnblogs.com/st-jun/p/7742560.html)
+
+```
+yum install nfs-utils
+```
+
+
+
+ bind:前提需要在宿主机有这个目录，这种方式用的不多。
+
+```shell
+ # 读写挂载 
+ docker service create 
+ \ --mount type=bind,src=<HOST-PATH>,dst=<CONTAINER-PATH> 
+ \ --name myservice 
+ \ <IMAGE> 
+ 
+ # 只读挂载 docker service create 
+ \ --mount type=bind,src=<HOST-PATH>,dst=<CONTAINER-PATH>,readonly 
+ \ --name myservice 
+ \ <IMAGE>
+```
+
+
+
+#### 服务发现与负载均衡
+
+![alt](imgs/docker-swarm-fz.png)
+
+
+
+```shell
+# 进容器查看DNS记录 
+nslookup hello  
+
+# 获取虚拟IP 
+docker service inspect -f '{{json .Endpoint.VirtualIPs}}' hello 
+
+# 设置DNS轮询模式  endpoint-mode  vip 与dnsrr,通常使用vip,dnsrr不支持端口暴漏
+docker service create 
+\ --replicas 3 
+\ --name my-web 
+\ --network my-network 
+\ --endpoint-mode dnsrr 
+\ nginx
+
+```
+
+
+
+#### 高可用性
+
+
+
+![alt](imgs/docker-swarm-ha.png)
+
+
+
+#### 配置文件存储
+
+将配置文件分发到每个节点
+
+1.生成一个基本的Nginx配置文件 site.conf
+
+```xml
+ server { listen         80; server_name  localhost; location / { root   /usr/share/nginx/html; index  index.html index.htm; } }
+```
+
+
+
+ 2.将site.conf保存到docker配置中 
+
+```shell
+docker config create site.conf site.conf 
+docker config ls 
+```
+
+
+
+3.创建一个Nginx并应用这个配置  
+
+```shell
+docker service create 
+\ --name nginx 
+\ --config source=site.conf,target=/etc/nginx/conf.d/site.conf 
+\ --publish 8080:80 
+\ nginx:latest
+```
+
+
+
+#### 应用实战
+
+创建一个私有仓库`192.168.1.110:5000/nginx:v1`
+
+如果不使用nfs的话，那么就需要将每台机器上的目录都防止数据文件。
+
+
+
+1.创建overlay网络 
+
+```shell
+docker network create -d overlay lnmp 
+```
+
+
+
+2.创建Nginx服务 
+
+```shell
+docker service create 
+\ --name nginx 
+\ --replicas 3 
+\ --network lnmp 
+\ --publish 8888:80 
+\ --mount type=volume,source=wwwroot,destination=/usr/local/nginx/html 
+\ 192.168.1.110:5000/nginx:v1 
+```
+
+
+
+3.创建PHP服务
+
+```shell
+docker service create 
+\ --name php 
+\ --replicas 3 
+\ --network lnmp 
+\ --mount type=volume,source=wwwroot,destination=/usr/local/nginx/html 
+\ 192.168.1.110:5000/php:v1
+
+```
+
+
+
+4.创建MySQL服务 
+
+```shell
+docker service create 
+\ --name mysql 
+\ --replicas 1 
+\ --network lnmp 
+\ --config src=my.cnf,target="/etc/mysql/conf.d/my.cnf" 
+\ --mount type=volume,source=dbdata,destination=/var/lib/mysql 
+\ -e MYSQL_ROOT_PASSWORD=123456 
+\ -e MYSQL_USER=wordpress 
+\ -e MYSQL_PASSWORD=wp123456 
+\ -e MYSQL_DATABASE=wordpress 
+\ mysql:5.6
+
+```
+
+
+
+#### swarm编排服务
+
+一键部署：docker stack deploy -c service_stack.yml lnmp
+
+![alt](imgs/docker-swarm-stack.png)
+
+
+
+
+
+## 11. Kubernetes
+
+
 

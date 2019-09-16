@@ -1720,6 +1720,16 @@ docker run -d
 
 ## 10. docker高级使用
 
+
+
+三剑客：
+
+* docker compose 
+* docker swarm  
+* docker machine
+
+
+
 这里介绍一些工具，了解就行，今后直接跳转到kubernetes
 
 [高级教程](https://www.qikqiak.com/k8s-book/docs/8.Docker Compose.html)

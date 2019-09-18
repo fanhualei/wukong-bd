@@ -1,4 +1,4 @@
-
+ 
 
 #  kubeadm 安装集群
 
@@ -321,7 +321,19 @@ kubectl get nodes
 
 
 
-### 3.1 设置hosts与hostname
+### 3.1 通过镜像生成虚拟机
+
+
+
+- 启动虚拟机，并配置网络ifcfg-enp0s8，有两个地方要修改
+
+  - `vi /etc/sysconfig/network-scripts`
+  - IPADDR =192.168.56.***
+  - UUID 改成与其他不同就可以了
+
+  
+
+### 3.2 设置hosts与hostname
 
 
 
@@ -352,7 +364,7 @@ ping -c 2 apiserver.demo
 
 
 
-### 3.2 获得 join命令参数
+### 3.3 获得 join命令参数
 
 在 master 节点执行
 
@@ -365,7 +377,7 @@ kubeadm token create --print-join-command
 
 
 
-### 3.3 初始化worker
+### 3.4 初始化worker
 
 将从master上得到的字符串，复制过来，并执行
 
@@ -377,7 +389,7 @@ kubeadm join apiserver.demo:6443 --token m09bzr.pstzjimrusxmzlw5     --discovery
 
 
 
-### 3.4 检查初始化结果
+### 3.5 检查初始化结果
 
 在 master 节点上执行
 
@@ -391,7 +403,7 @@ kubectl get nodes
 
 
 
-### 3.5 移除节点
+### 3.6 移除节点(可选)
 
 在准备移除的 worker 节点上执行
 
@@ -409,3 +421,40 @@ kubectl delete node demo-worker-x-x
 
 - 将 demo-worker-x-x 替换为要移除的 worker 节点的名字
 - worker 节点的名字可以通过在节点 demo-master-a-1 上执行 kubectl get nodes 命令获得
+
+
+
+## 4. 安装dashboard
+
+* [官方说明地址](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)
+* [Kubernetes Dashboard的安装与坑](https://www.jianshu.com/p/c6d560d12d50)
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 参考文档
+
+* 安装相关
+  * [Kubernetes的几种主流部署方式01-minikube部署](https://segmentfault.com/a/1190000018607114)
+  * [最简单的kubernetes入门实验教程](https://www.jianshu.com/p/f4c2104ba90a)
+    - 使用了kubeadm一步安装
+  * [Kubernetes中文社区](http://docs.kubernetes.org.cn/)
+  * [Kubernetes 安装文档推荐](https://www.kubernetes.org.cn/5650.html)
+  * [10分钟搭建Kubernetes容器集群平台（kubeadm）](https://blog.51cto.com/lizhenliang/2296100?tdsourcetag=s_pcqq_aiomsg)
+* 基础知识
+  * [Kubernetes中文社区 | 中文文档](http://docs.kubernetes.org.cn/)
+  * [使用 Docker Alpine 镜像安装 nginx](https://www.cnblogs.com/klvchen/p/11015267.html)
+

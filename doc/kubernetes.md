@@ -80,7 +80,43 @@
 
 
 
-二进制安装很复杂，minikube有体现不了多服务器的功能。 所以选择kubeadm安装，安装还是需要一些步骤的，所以我单独写了一个kubeadm安装](kubernetes-kubeadm.md)
+二进制安装很复杂，minikube有体现不了多服务器的功能。 所以选择kubeadm安装，安装还是需要一些步骤的，所以我单独写了一个[kubeadm安装指南](kubernetes-kubeadm.md)
+
+
+
+## 3. 系统架构
+
+
+
+> 系统架构图
+
+![alt](imgs/k8s-struct.png)
+
+
+
+> 部署设计图
+
+以上二进制的部署，github上有自动脚本，可以进行部署。
+
+![alt](imgs/k8s-net-design.png)
+
+kubelet运行pod的核心组件
+
+
+
+> kubeadm部署架构图
+
+1. master +nodes :安装kubelet kubeadm docker
+2. master:kubeadm init
+3. nodes:kubeadm jion
+
+![alt](imgs/k8s-kubeadm-in.png)
+
+
+
+
+
+
 
 
 
@@ -93,4 +129,5 @@
   * 使用了kubeadm一步安装
 * [Kubernetes中文社区](http://docs.kubernetes.org.cn/)
 * [Kubernetes 安装文档推荐](https://www.kubernetes.org.cn/5650.html)
+* [10分钟搭建Kubernetes容器集群平台（kubeadm）](https://blog.51cto.com/lizhenliang/2296100?tdsourcetag=s_pcqq_aiomsg)
 

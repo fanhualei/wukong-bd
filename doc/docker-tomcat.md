@@ -200,3 +200,27 @@ docker run -dit  --name my-app -v /container_data/my-app/webapp:/opt/webapp -p 8
 
 使用手工创建的好处是能分布进行测试
 
+
+
+```shell
+# 清理一下镜像
+docker rmi my-tomcat-alpine:v3
+
+# 生成镜像
+docker build -t my-tomcat-alpine:v3 .
+
+# 运行容器
+docker run -dit --name my-app-v3 my-tomcat-alpine:v3
+
+# 测试容器
+curl $(docker inspect -f '{{.NetworkSettings.IPAddress }}' my-app-v3):8080
+```
+
+
+
+
+
+
+
+
+

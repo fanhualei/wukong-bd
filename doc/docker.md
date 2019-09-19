@@ -4,6 +4,14 @@
 
 如果你想深入了解原理，那么看下面的文档。
 
+比较好的文档：
+
+* [docker命令行大全详解（更新中）](https://blog.csdn.net/talkxin/article/details/83061973)
+
+
+
+
+
 [TOC]
 
 
@@ -1338,7 +1346,7 @@ docker push username/repository:tag            # Upload tagged image to registry
 docker run username/repository:tag                   # Run image from a registry
 ```
 
-
+[Dockerfile RUN，CMD，ENTRYPOINT命令区别](https://www.jianshu.com/p/f0a0f6a43907)
 
 
 

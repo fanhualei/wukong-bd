@@ -192,15 +192,60 @@ docker run -dit  --name my-app -v /container_data/my-app/webapp:/opt/webapp -p 8
 
 
 
+Dockerfile on github
+
+```
+https://github.com/fanhualei/wukong-bd/tree/master/examples/docker/Dockerfiles/tomcat-alpine
+```
+
 
 
 
 
 ### 使用Dockerfile创建
 
-使用手工创建的好处是能分布进行测试
+使用手工创建的好处是能分布进行测试，github上有很多例子，可以参考`https://github.com/docker-library`
 
 
+
+#### 第一步、编辑Dockerfile
+
+[源代码详细](https://github.com/fanhualei/wukong-bd/tree/master/examples/docker/Dockerfiles/tomcat-alpine)
+
+```dockerfile
+FROM alpine
+
+MAINTAINER fanhualei
+
+
+#使用阿里镜像,安装 openjdk
+RUN set -x;\
+        sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories;\
+        apk add openjdk8;
+        
+
+#安装tomcat
+ADD apache-tomcat-9.0.24.tar.gz /opt
+RUN set -x;\
+        ln -s /opt/apache-tomcat-9.0.24/  /opt/tomcat; \
+        ln -s /opt/apache-tomcat-9.0.24/bin/catalina.sh /bin/tomcat; \
+        mkdir /opt/webapp;
+    
+
+#初始化文件
+COPY index.jsp /opt/webapp/ 
+COPY server.xml /opt/tomcat/conf/
+
+EXPOSE 8080
+
+CMD ["tomcat", "run"]
+```
+
+
+
+
+
+#### 第二步、编译与测试镜像
 
 ```shell
 # 清理一下镜像
@@ -214,6 +259,18 @@ docker run -dit --name my-app-v3 my-tomcat-alpine:v3
 
 # 测试容器
 curl $(docker inspect -f '{{.NetworkSettings.IPAddress }}' my-app-v3):8080
+```
+
+
+
+#### 第三步、上传hub.docker
+
+```shell
+docker tag my-tomcat-alpine:v3 fanhualei/tomcat-alpine:v3
+
+docker login
+
+docker push fanhualei/tomcat-alpine:v3
 ```
 
 

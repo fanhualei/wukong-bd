@@ -1,12 +1,44 @@
- 
+roo 
 
-#  kubeadm 安装集群
+#  kubeadm 集群安装
 
 [TOC]
 
+| vbox             | hostname      | ip             |
+| ---------------- | ------------- | -------------- |
+| k8s-master-105   | master.demo   | 192.168.1.185  |
+| k8s-worker01-107 | worker01.demo | 192.168.1.186  |
+| k8s-worker02-108 | worker02.demo | 192.168.56.108 |
 
 
 
+https://github.com/eip-work/kuboard-press/blob/master/install/install-k8s.md
+
+```shell
+export MASTER_IP=192.168.1.185
+export APISERVER_NAME=apiserver.demo
+export POD_SUBNET=10.100.0.1/20
+echo "${MASTER_IP}    ${APISERVER_NAME}" >> /etc/hosts
+curl -sSL https://kuboard.cn/install-script/v1.15.3/init-master.sh | sh
+```
+
+kubectl run net-test --image=alpine --replicas=2 sleep 3600
+
+kubectl  delete deploy net-test 
+
+kubectl run  -dit  net-test --image=alpine  ash
+
+kubectl run    net-test --image=alpine  /bin/sh
+
+kubectl get pod
+
+kubectl get deploy 
+
+![](imgs/k8s-install-master-runing.png)
+
+
+
+![alt](imgs/k8s-install-1-marster-Running2.png)
 
 
 
@@ -22,7 +54,7 @@
 
 ### 1.1 安装docker
 
-安装很简单，一行命令就能安装完毕了. 这里安装了docker 最新版本，kubernetes会给出一个警告
+安装很简st单，一行命令就能安装完毕了. 这里安装了docker 最新版本，kubernetes会给出一个警告
 
 ```shell
 ## 安装
@@ -331,7 +363,65 @@ kubectl get nodes
   - IPADDR =192.168.56.***
   - UUID 改成与其他不同就可以了
 
-  
+
+
+
+> enpos3
+
+```
+TYPE="Ethernet"
+PROXY_METHOD="none"
+BROWSER_ONLY="no"
+BOOTPROTO="dhcp"
+DEFROUTE="yes"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="yes"
+IPV6_AUTOCONF="yes"
+IPV6_DEFROUTE="yes"
+IPV6_FAILURE_FATAL="no"
+IPV6_ADDR_GEN_MODE="stable-privacy"
+NAME="enp0s3"
+UUID="f50d60b4-3afe-4ff9-b10e-662e819e5739"
+DEVICE="enp0s3"
+:="yes"
+
+```
+
+
+
+[VirtualBox的四种网络连接方式](https://www.cnblogs.com/jpfss/p/8616613.html)
+
+
+
+> enpos8
+
+```
+TYPE="Ethernet"
+PROXY_METHOD="none"
+BROWSER_ONLY="no"
+BOOTPROTO="static"
+DEFROUTE="yes"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="yes"
+IPV6_AUTOCONF="yes"
+IPV6_DEFROUTE="yes"
+IPV6_FAILURE_FATAL="no"
+IPV6_ADDR_GEN_MODE="stable-privacy"
+NAME="enp0s8"
+UUID="f32d60b5-2afe-8ff0-b20e-662e136e8344"
+DEVICE="enp0s8"
+ONBOOT="yes"
+
+
+IPADDR=192.168.56.108
+NETMASK=255.255.255.0
+GATEWAY=192.168.56.1
+
+```
+
+
+
+
 
 ### 3.2 设置hosts与hostname
 

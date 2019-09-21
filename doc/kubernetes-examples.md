@@ -2,8 +2,6 @@
 
 [TOC]
 
-小技巧：[GitHub访问速度慢的一种优化方法](https://baijiahao.baidu.com/s?id=1608100091125662190&wfr=spider&for=pc)
-
 
 
 
@@ -367,6 +365,365 @@ kubectl rollout undo deployment/mytomcat-deployment
 
 # kubectl rollout undo deployment/demo --to-revision=2
 ```
+
+
+
+## 2.6 回顾上面练习
+
+
+
+### 什么是Kubernetes？
+
+Kubernetes（k8s）是自动化容器操作的开源平台，这些操作包括部署，调度和节点集群间扩展。使用Kubernetes可以：
+
+- 自动化容器的部署和复制
+- 随时扩展或收缩容器规模
+- 将容器组织成组，并且提供容器间的负载均衡
+- 很容易地升级应用程序容器的新版本
+- 提供容器弹性，如果容器失效就替换它，等等
+
+
+
+### 集群
+
+集群是一组节点，这些节点可以是物理服务器或者虚拟机，之上安装了Kubernetes平台。下图展示这样的集群。注意该图为了强调核心概念有所简化。这里可以看到一个典型的Kubernetes架构图。
+
+![alt](imgs/d7ce07842371eab180725bab5164ec17.d58ea9cc.png)
+
+
+
+#### Pod
+
+[Pod](https://kubernetes.io/docs/concepts/workloads/pods/pod-overview/)（上图绿色方框）安排在节点上，包含一组容器和卷。
+
+同一个Pod里的容器共享同一个网络命名空间，可以使用localhost互相通信。
+
+Pod是短暂的，不是持续性实体。你可能会有这些问题：
+
+- 如果Pod是短暂的，那么我怎么才能持久化容器数据使其能够跨重启而存在呢？
+- 是否手动创建Pod，如果想要创建同一个容器的多份拷贝，需要一个个分别创建出来么？
+- 如果Pod是短暂的，那么重启时IP地址可能会改变，那么怎么才能从前端容器正确可靠地指向后台容器呢？
+
+
+
+#### Label
+
+正如图所示，一些Pod有Label（![enter image description here](data:image/png;base64,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)）。
+
+你可能创建了一个"tier"和“app”标签，通过Label（**tier=frontend, app=myapp**）来标记前端Pod容器，使用Label（**tier=backend, app=myapp**）标记后台Pod。
+
+然后可以使用 [Selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) 选择带有特定Label的Pod，并且将Service或者Replication Controller应用到上面。
+
+
+
+#### Deployment(Controller)
+
+> 当创建Deployment Controller时，需要指 定两个东西：
+
+1. Pod模板：用来创建Pod副本的模板
+
+2. Label：Deployment  Controller需要监控的Pod的标签。
+
+   
+
+现在已经创建了Pod的一些副本，那么在这些副本上如何均衡负载呢？我们需要的是Service。
+
+
+
+####  Service
+
+*如果Pods是短暂的，那么重启时IP地址可能会改变，怎么才能从前端容器正确可靠地指向后台容器呢？*
+
+ [Service](https://kubernetes.io/docs/concepts/services-networking/service/) **抽象** 现在，假定有2个后台Pod，并且定义后台Service的名称为`backend-service`，lable选择器为（（**tier=backend, app=myapp**））。 的Service会完成如下两件重要的事情：
+
+- 会为Service创建一个本地集群的DNS入口，因此前端Pod只需要DNS查找主机名为 `backend-service`，就能够解析出前端应用程序可用的IP地址。
+- 现在前端已经得到了后台服务的IP地址，但是它应该访问2个后台Pod的哪一个呢？
+  - Service在这2个后台Pod之间提供透明的负载均衡，会将请求分发给其中的任意一个，然后通过每个Node上运行的代理（kube-proxy）完成。
+
+
+
+![alt](imgs/e7a273fcdc03d2417b354b60c253552f.19ae82d9.gif)
+
+每个节点都运行如下Kubernetes关键组件：
+
+- Kubelet：是主节点代理。
+- Kube-proxy：Service使用其将链接路由到Pod，如上文所述。
+- Docker或Rocket：Kubernetes使用的容器技术来创建容器。
+
+
+
+
+# 3. Kubernetes 进阶
+
+
+
+## 3.1 使用docker私有仓库
+
+* [手把手教你搭建Docker Registry私服](https://segmentfault.com/a/1190000015108428)
+
+私有仓库安装比较简单，就是下载一个docker镜像，并启动，这里多讲。这里只说一下可以应用的场景。
+
+* 在公司内部用
+  * 可以配置一个密码，有权限的用户才可以上传与修改镜像。
+  * 也可以做一个web网站来使用，可以到github上搜索一下。WEB UI for Registry
+
+
+
+## 3.2 Pod详解
+
+术语中英文对照：
+
+| 英文全称   | 英文缩写   | 中文翻译 |
+| ---------- | ---------- | -------- |
+| Pod        | Pod        | 容器组   |
+| Container  | Container  | 容器     |
+| Controller | Controller | 控制器   |
+
+
+
+### 3.2.1 Pod-概述
+
+Pod（容器组）是 Kubernetes 中最小的可部署单元。
+
+一个 Pod（容器组）包含了一个应用程序容器（某些情况下是多个容器）、存储资源、一个唯一的网络 IP 地址、以及一些确定容器该如何运行的选项。
+
+Pod 容器组代表了 Kubernetes 中一个独立的应用程序运行实例，该实例可能由单个容器或者几个紧耦合在一起的容器组成。
+
+
+
+#### Pod 如何管理多个容器
+
+Pod 的设计目的是用来支持多个互相协同的容器，是的他们形成一个有意义的服务单元。
+
+
+
+> 提示：只有在容器之间紧密耦合时，才应该使用这种方式
+
+```
+将多个容器运行于同一个容器组中是一种相对高级复杂的使用方法。只有在您的容器相互之间紧密耦合时，您才应该使用这种方式。例如：您可能有一个容器是 web server，用来将共享数据卷中的文件作为网站发布出去，同时您有另一个 "sidecar" 容器从远程抓取并更新这些文件。
+```
+
+
+
+
+
+> 初始化容器
+
+某些 Pod 除了使用 app container （工作容器）以外，还会使用 init container （初始化容器），初始化容器运行并结束后，工作容器才开始启动。
+
+
+
+> Pod 为其成员容器提供了两种类型的共享资源：网络和存储
+
+* 网络 Networking：每一个 Pod 被分配一个独立的 IP 地址。Pod 中的所有容器共享一个网络名称空间：
+  * 同一个 Pod 中的所有容器 IP 地址都相同
+  * 同一个 Pod 中的不同容器不能使用相同的端口，否则会导致端口冲突
+  * 同一个 Pod 中的不同容器可以通过 localhost:port 进行通信
+  * 同一个 Pod 中的不同容器可以通过使用常规的进程间通信手段，例如 SystemV semaphores 或者 POSIX 共享内存
+  * **不同 Pod 上的两个容器如果要通信，必须使用对方 Pod 的 IP 地址 + 对方容器的端口号 进行网络通信**
+
+* 存储 Storage
+
+Pod 中可以定义一组共享的数据卷。Pod 中所有的容器都可以访问这些共享数据卷，以便共享数据。Pod 中数据卷的数据也可以存储持久化的数据，使得容器在重启后仍然可以访问到之前存入到数据卷中的数据。请参考 [数据卷 Volume](https://kuboard.cn/learning/k8s-intermediate/persistent/volume.html)
+
+
+
+#### Pod容器的特点
+
+Kubernetes 的设计中 Pod 是一个相对来说存活周期短暂，且随时会丢弃的实体。
+
+在 Pod 被创建后（您直接创建，或者间接通过 Controller 创建），将被调度到集群中的一个节点上运行。
+
+Pod 将一直保留在该节点上，直到 Pod 以下情况发生：
+
+- Pod 中的容器全部结束运行
+- Pod 被删除
+- 由于节点资源不够，Pod 被驱逐
+- 节点出现故障（例如死机）
+
+
+
+>请不要混淆以下两个概念：
+
+```
+- 重启 Pod 中的容器
+- 重启 Pod
+Pod 本身并不会运行，Pod 仅仅是容器运行的一个环境
+```
+
+
+
+Pod 本身并不能自愈（self-healing）。如果一个 Pod 所在的 Node （节点）出现故障，或者调度程序自身出现故障，Pod 将被删除；
+
+同理，当因为节点资源不够或节点维护而驱逐 Pod 时，Pod 也将被删除。
+
+Kubernetes 通过引入 Controller（控制器）的概念来管理 Pod 实例。**在 Kubernetes 中，更为推荐的做法是使用 Controller 来管理 Pod，而不是直接创建 Pod。**
+
+通过命令`kubectl run ` 会提示这个方法将被取代。
+
+
+
+#### 应该使用控制器创建 Pod
+
+> 用户应该始终使用控制器来创建 Pod，而不是直接创建 Pod
+
+控制器可以提供如下特性：
+
+- 水平扩展（运行 Pod 的多个副本）
+
+- rollout（版本更新）
+
+- self-healing（故障恢复）
+
+  例如：当一个节点出现故障，控制器可以自动地在另一个节点调度一个配置完全一样的 Pod，以替换故障节点上的 Pod。
+
+
+
+> 在 Kubernetes 中，广泛使用的控制器有：
+
+- Deployment
+- StatefulSet
+- DaemonSet
+
+控制器通过其中配置的 Pod Template 信息来创建 Pod。
+
+
+
+#### Pod 模板
+
+Pod Template 是关于 Pod 的定义，但是被包含在其他的 Kubernetes 对象中（例如 Deployment、StatefulSet、DaemonSet 等控制器）。
+
+控制器通过 Pod Template 信息来创建 Pod。
+
+正是由于 Pod Template 的存在，Kuboard 可以使用一个工作负载编辑器来处理不同类型的控制器。
+
+
+
+#### 停止 Pod 
+
+Pod 代表了运行在集群节点上的进程，而进程的终止有两种方式：
+
+- 优雅地终止
+- 直接 kill，此时进程没有机会执行清理动作
+
+```
+默认情况下，删除 Pod 的 grace period（等待时长）是 30 秒。
+
+可以通过 kubectl delete 命令的选项 --grace-period=<seconds> 自己指定 grace period（等待时长）。
+
+如果您要强制删除 Pod，您必须为 kubectl delete 命令同时指定两个选项 --grace-period=0 和 --force
+```
+
+
+
+
+
+### 3.2.2 Pod-生命周期
+
+
+
+#### Pod生命周期阶段的划分
+
+Pod phase 代表其所处生命周期的阶段。Pod phase 并不是用来代表其容器的状态，也不是一个严格的状态机。
+
+phase 的可能取值有：
+
+| Phase     | 描述                                                         |
+| --------- | ------------------------------------------------------------ |
+| Pending   | Kubernetes 已经创建并确认该 Pod。此时可能有两种情况：Pod 还未完成调度（例如没有合适的节点）正在从 docker registry 下载镜像 |
+| Running   | 该 Pod 已经被绑定到一个节点，并且该 Pod 所有的容器都已经成功创建。其中至少有一个容器正在运行，或者正在启动/重启 |
+| Succeeded | Pod 中的所有容器都已经成功终止，并且不会再被重启             |
+| Failed    | Pod 中的所有容器都已经终止，至少一个容器终止于失败状态：容器的进程退出码不是 0，或者被系统 kill |
+| Unknown   | 因为某些未知原因，不能确定 Pod 的状态，通常的原因是 master 与 Pod 所在节点之间的通信故障 |
+
+
+
+#### Pod 状况
+
+Pod conditions，每一个 Pod 都有一个数组描述其是否达到某些指定的条件。
+
+该数组的每一行可能有六个字段：
+
+| 字段名             | 描述                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| type               | type 是最重要的字段，可能的取值有：**PodScheduled：** Pod 已被调度到一个节点**Ready：** Pod 已经可以接受服务请求，应该被添加到所匹配 Service 的负载均衡的资源池。  **Initialized：**Pod 中所有初始化容器已成功执行。  **Unschedulable：**不能调度该 Pod（缺少资源或者其他限制）。  **ContainersReady：**Pod 中所有容器都已就绪 |
+| status             | 能的取值有：TrueFalseUnknown                                 |
+| reason             | Condition 发生变化的原因，使用一个符合驼峰规则的英文单词描述 |
+| message            | Condition 发生变化的原因的详细描述，human-readable           |
+| lastTransitionTime | Condition 发生变化的时间戳                                   |
+| lastProbeTime      | 上一次针对 Pod 做健康检查/就绪检查的时间戳                   |
+
+
+
+#### 容器健康检查
+
+Probe 是指 kubelet 周期性地检查容器的状况。
+
+
+
+> Probe有三种类型 ：
+
+- **ExecAction：** 在容器内执行一个指定的命令。如果该命令的退出状态码为 0，则成功
+- **TCPSocketAction：** 探测容器的指定 TCP 端口，如果该端口处于 open 状态，则成功
+- **HTTPGetAction：** 探测容器指定端口/路径上的 HTTP Get 请求，如果 HTTP 响应状态码在 200 到 400（不包含400）之间，则成功
+
+
+
+> Probe 有三种可能的结果：
+
+- **Success：** 容器通过检测
+- **Failure：** 容器未通过检测
+- **Unknown：** 检测执行失败，此时 kubelet 不做任何处理
+
+
+
+> 对运行中的容器执行 Probe的两种情况：
+
+- **就绪检查 readinessProbe：** 确定容器是否已经就绪并接收服务请求。如果就绪检查失败，kubernetes 将该 Pod 的 IP 地址从所有匹配的 Service 的资源池中移除掉。
+
+- **健康检查 livenessProbe：** 确定容器是否正在运行。如果健康检查失败，kubelete 将结束该容器，并根据 restart policy（重启策略）确定是否重启该容器。
+
+  
+
+#### 何时使用 健康检查/就绪检查？
+
+
+
+
+
+
+
+### 3.2.3 Pod-初始化容器
+
+
+
+### 3.2.4 控制器-概述
+
+
+
+### 3.2.5 控制器-Deployment
+
+
+
+### 3.2.6 控制器-StatefulSet
+
+
+
+### 3.2.7 控制器-DaemonSet
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

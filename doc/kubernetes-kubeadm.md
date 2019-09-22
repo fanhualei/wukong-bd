@@ -508,20 +508,212 @@ kubectl delete node demo-worker-x-x
 
 # 第六步. 安装dashboard
 
-* [官方说明地址](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)
-* [Kubernetes Dashboard的安装与坑](https://www.jianshu.com/p/c6d560d12d50)
+* [部署dashboard](https://www.cnblogs.com/caibao666/p/11556034.html)
+* [Kubernetes web界面kubernetes-dashboard安装](https://www.cnblogs.com/harlanzhang/p/10045975.html)
+* [Kubernetes(一) 跟着官方文档从零搭建K8S](https://blog.piaoruiqing.com/blog/2019/09/17/%E6%90%AD%E5%BB%BAk8s/)
+
+
+
+## 6.1 安装程序
+
+前提条件：打开[官方说明地址](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) ，找到配置文件`recommended.yaml`，并下载，具体操作如下。
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
+# 建立一个目录
+mkdir dashboard
+cd dashboard
+
+# 下载文件，文件名需要根据官网的地址进行修改
+wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
+
+# 修改这个文件，让端口映射到master上
+vi recommended.yaml
+
+# 重新生成
+kubectl apply -f kubernetes-dashboard.yaml
+
+# 查看service
+kubectl get svc -n kubernetes-dashboard
+kubectl get pods -n kubernetes-dashboard
+
+
 ```
 
 
 
+> 要修改的内容
+
+```yaml
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+spec:
+  type: NodePort # 追加这个type
+  ports:
+    - port: 443
+      targetPort: 8443
+      nodePort: 30001  #追加这个端口
+  selector:
+    k8s-app: kubernetes-dashboard
+
+---
+
+```
+
+
+
+## 6.2 创建用户
+
+> admin-token.yaml
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin
+  namespace: kubernetes-dashboard
+  labels:
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: admin
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: admin
+  namespace: kubernetes-dashboard
+```
+
+
+
+> 执行命令，得到一个token
+
+```shell
+# 生成用户
+kubectl apply -f admin-token.yaml
+
+# 查看生成的secret
+kubectl get secret -n kubernetes-dashboard
+
+# 得到这个用户的token
+kubectl -n kubernetes-dashboard  describe secret admin-token-g5prz
+```
+
+
+
+## 6.3 访问DashBoard
+
+可以输入任意节点的IP：https://192.168.1.185:30001
+
+> 输入Token
+
+![alt](imgs/k8s-dashboard-login.png)
+
+> 进入管理页面
+
+![alt](imgs/k8s-dashboard-show.png)
+
+
+
+## 6.5 优化配置
+
+
+
+### 6.5.1 https访问的问题
+
+chrome不支持没有证书的https访问，所以有两个思路解决这个问题。
+
+* 得到证书
+  * 申请一个免费的
+  * 自己做一个证书
+* 开放http协议（这样不安全）
+
+#### 6.5.1.1 自己做证书
 
 
 
 
-## 参考文档
+
+#### 6.5.1.2 开放http协议
+
+**修改recommended.yaml文件**
+
+- 1.容器组暴露9090端口 
+- 2.增加9090端口的http探针检测 
+- 3.Service暴露9090端口 
+- 4.Service采用`NodePort`类型 
+
+```yaml
+# service处的核心配置
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+spec:
+  ports:
+    - port: 443
+      name: https
+      targetPort: 8443
+    - port: 9090  # 新追加
+      name: http   # 新追加
+      targetPort: 9090  # 新追加
+  type: NodePort
+  selector:
+    k8s-app: kubernetes-dashboard
+
+# deploy处的核心配置
+      containers:
+        - name: kubernetes-dashboard
+          image: kubernetesui/dashboard:v2.0.0-beta4
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8443 
+              protocol: TCP
+            - containerPort: 9090  # 新追加
+              protocol: TCP         # 新追加
+
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /
+              port: 8443
+            httpGet:           # 新追加
+              scheme: HTTP     # 新追加
+              port: 9090       # 新追加
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+```
+
+
+
+### 6.5.2 不是显示通知
+
+因为没有权限
+
+[根据这个文档来修改](https://blog.csdn.net/weichuangxxb/article/details/100627127)
+
+
+
+
+
+# 参考文档
 
 * 安装相关
   * [Kubernetes的几种主流部署方式01-minikube部署](https://segmentfault.com/a/1190000018607114)

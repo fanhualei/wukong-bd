@@ -13,11 +13,11 @@
 * Kubernetes 进阶
 
   * [使用docker私有仓库](https://segmentfault.com/a/1190000015108428)
-* [Pod详解](kubernetes-detail-pod.md)
+  * [Pod详解](kubernetes-detail-pod.md)
   * [控制器详解](kubernetes-detail-controller.md)
-* [service详解](kubernetes-detail-service.md)
+  * [service详解](kubernetes-detail-service.md)
   * [volume存储详解](kubernetes-detail-volume.md)
-
+  
 * [docker基本技巧](docker-menu.md)
 
   

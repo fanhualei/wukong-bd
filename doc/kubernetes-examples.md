@@ -483,7 +483,7 @@ Pod是短暂的，不是持续性实体。你可能会有这些问题：
 
 ## 3.4. 服务发现、负载均衡、网络
 
-
+[service详解](kubernetes-detail-service.md)
 
 
 

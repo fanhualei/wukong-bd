@@ -24,6 +24,73 @@
 
 
 
+## 1.1 背景知识
+
+- kubernetes特性
+  - 自动装箱
+  - 自动修复
+  - 自动实现水平扩展
+  - 自动服务发现
+  - 自动负载均衡
+  - 自动发布与回滚
+  - 密钥与配置管理（在配置中心配置每个容器的环境变量）
+  - 存储编排
+  - 批量处理执行
+
+
+
+- 周边生态
+  - [docker](https://www.orchome.com/docker/index)
+  - [kubeadm](https://www.orchome.com/kubeadm/index)
+  - [kubeflow](https://www.orchome.com/kubeflow/index)
+  - [kompose](https://www.orchome.com/kompose/index)
+  - [istio](https://www.orchome.com/istio/index)
+
+
+
+- 关键内容
+  - master/node
+    - master:APIServier Scheduler Controller-Manger
+    - node: kubelet，docker，
+  - Pod , Label,Label selector
+    - Label:key=value格式
+    - Label Selector:
+  - Pod
+    - 自助式Pod
+    - 控制器管理的Pod(推荐)
+      - Deployment(HPA自动水平扩展)
+      - statefulSet
+      - DaemonSet
+      - Job.Ctonjob
+  - service
+  - volume
+
+
+
+## 1.2. 系统架构
+
+
+
+> 系统架构图
+
+![alt](imgs/k8s-struct.png)
+
+
+
+> 部署设计图
+
+以上二进制的部署，github上有自动脚本，可以进行部署。
+
+![alt](imgs/k8s-net-design.png)
+
+
+
+
+
+
+
+
+
 # 2. Kubernetes 入门
 
 
@@ -487,9 +554,9 @@ Pod是短暂的，不是持续性实体。你可能会有这些问题：
 
 
 
+## 3.5 存储
 
-
-
+[volume存储详解](kubernetes-detail-volume.md)
 
 
 

@@ -37,7 +37,7 @@
   * 明星产品
     * [zookeeper](doc/zookeeper.md)
     * [kafka](doc/kafka.md)
-    * [docker](doc/docker.md)
+    * [docker](doc/docker-menu.md)
     * [Kubernetes](doc/kubernetes.md)
   * 其他产品
     * [oozie](doc/oozie.md)

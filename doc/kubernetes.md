@@ -18,7 +18,11 @@
   * [service详解](kubernetes-detail-service.md)
   * [volume存储详解](kubernetes-detail-volume.md)
   
+* [kubernetes对象演示](kubernetes-code.md)
+
 * [docker基本技巧](docker-menu.md)
+
+* [NFS网络存储](nfs.md)
 
   
 

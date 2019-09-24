@@ -35,6 +35,8 @@ chown nfsnobody.nfsnobody /home/nfs
 ```
 vim /etc/exports
 /home/nfs/ 192.168.1.0/24(rw,sync,fsid=0)
+# 也可以这么来设置  
+#/home/nfs2/ 192.168.1.0/24 (rw,no_root_squash)
 ```
 
 同192.168.1.0/24一个网络号的主机可以挂载NFS服务器上的/home/nfs/目录到自己的文件系统中

@@ -5,10 +5,6 @@
 
 
 
-
-
-
-
 # 1. Pod
 
 
@@ -19,7 +15,11 @@
 
 
 
-## 2.1 emptyDir
+## 2.1 局部存储
+
+
+
+### 2.1.1 emptyDir
 
 同一容器组中的不同容器都可以对该目录执行读写操作，并且共享其中的数据。
 
@@ -102,7 +102,7 @@ kubectl explain pods.spec.volumes.emptydir
 
 
 
-## 2.2 hostPath
+### 2.1.2 hostPath
 
 将**所在节点**的文件系统上某一个文件或文件夹挂载进容器组（容器）。
 
@@ -191,7 +191,7 @@ kubectl delete -f mypod.yaml
 
 
 
-## 2.3 gitRepo
+### 2.1.3 gitRepo
 
 
 
@@ -199,7 +199,11 @@ gitRepo卷类型已弃用。要为容器提供git存储库，[请将EmptyDir](ht
 
 
 
-## 2.4 nfs 网络
+## 2.2 持久化存储
+
+
+
+### 2.2.1 nfs 网络
 
 - 可以在加载 NFS 数据卷前就在其中准备好数据；
 - 可以在不同容器组之间共享数据；
@@ -274,7 +278,9 @@ kubectl delete -f mypod.yaml
 
 
 
-## 2.5 secret
+## 2.3 配置型存储
+
+### 2.3.1 secret
 
 Kubemetes提供了Secret来处理敏感数据，比如密码、Token和密钥，相比于直接将敏感数据配置在Pod的定义或者镜像中，Secret提供了更加安全的机制（Base64加密），防止数据泄露。Secret的创建是独立于Pod的，以数据卷的形式挂载到Pod中，Secret的数据将以文件的形式保存，容器通过读取文件可以获取需要的数据。
 
@@ -381,15 +387,336 @@ kubectl delete -f mypod.yaml
 
 
 
-## 2.6. ConfigMap
+### 2.3.2 configMap
 
-​	
+​	建立一个目录
+
+```shell
+cd ~ ; mkdir pod-v-config ; cd pod-v-config ; vi mypod.yaml
+
+```
 
 
 
 
 
-# 3. Secret
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config
+data:
+  special.how: very
+  special.type: charm123546/test/12234
+  
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - image: alpine
+    name: test-container
+    command:
+    - "/bin/sh"
+    - "-c"
+    - "while true; do echo heloo world; sleep 3; done"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /root/config  
+  restartPolicy: Never  
+  volumes:
+    - name: config-volume
+      configMap:
+        name: my-config
+      
+   # 也可以单独提取一个key,具体看2.5 secret的例子，有类似的
+   # 在一般情况下 configmap 挂载文件时，会先覆盖掉挂载目录
+   # 如果想不对原来的文件夹下的文件造成覆盖，只是将 configmap 中的每个 key，按照文件的方式挂载到目录下，可以使用 subpath 参数。（但是这种情况不常用）
+```
+
+
+
+
+
+> 进行测试
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> cd /root/config 
+> cat special.how ; echo \n ; cat special.type ; echo \n
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+# 3. PVC和PV
+
+为什么又PV和PVC这个概念呢？ 上面学习中，可以看到用户要手工关联Volume，这样就强关联了。 实际上管理员可以定义一些不同大小或读取速度的空间，然后告诉程序员那些空间可以选择，这样程序员就不用知道这些空间到底背后实现的机制，这样就完全解耦合了。
+
+* PersistentVolume缩写=PV
+
+* PersistentVolumeClaim缩写=PVC
+
+![alt](imgs/k8s-pvc-pv.png)
+
+>操作步骤
+
+* 存储管理员：创建了很多存储空间
+* K8s管理员：创建PV与存储进行关联
+* 程序员：创建PVC去申请PV，如果申请成功，那么PVC与PV绑定。
+
+
+
+## 3.1 创建存储空间
+
+> 创建目录
+
+```shell
+mkdir -p /data/v1
+mkdir -p /data/v2
+mkdir -p /data/v3
+mkdir -p /data/v4
+mkdir -p /data/v5
+vim /etc/exports
+```
+
+
+
+> exports文件
+
+```
+/data/v1/ 192.168.1.0/24 (rw,no_root_squash)
+/data/v2/ 192.168.1.0/24 (rw,no_root_squash)
+/data/v3/ 192.168.1.0/24 (rw,no_root_squash)
+/data/v4/ 192.168.1.0/24 (rw,no_root_squash)
+/data/v5/ 192.168.1.0/24 (rw,no_root_squash)
+```
+
+
+
+> 让共享目录生效
+
+```shell
+# 使定义生效
+exportfs -arv
+# 查看生效结果
+showmount -e
+```
+
+
+
+## 3.2 定义PV
+
+k8s管理员来做这件事。`kubectl explain pv` 来查看帮助
+
+关键顶一点：
+
+* 访问模型
+* 空间大小
+* 回收机制
+  * Retain 保留
+
+
+
+下面定义一个nfs格式的pv
+
+`pv-demo.yaml`
+
+
+
+```yaml
+# pv 不能定义名称空间，集群中通用
+aipVersion: v1
+kind: PersistentVolume
+metedata: 
+  name: pv001
+  labels:
+    name: pv001
+    speed: fast
+
+spec:
+  #单路只读  单路读写ReadWriteOnce 多路读写ReadWriteMany   
+  accessModes:["ReadWriteMany","ReadWriteOnce"]   
+  # 存储大小 Ei Pi Ti Gi Mi Ki 
+  # 下面定义支持1G
+  capacity:
+    storage: 1Gi
+  nfs:
+    path: /data/v1/
+    server: 192.168.1.185
+    
+---
+
+aipVersion: v1
+kind: PersistentVolume
+metedata: 
+  name: pv002
+  labels:
+    name: pv002
+    speed: fast
+spec:
+  #单路只读  单路读写ReadWriteOnce 多路读写ReadWriteMany   
+  accessModes:["ReadWriteMany","ReadWriteOnce"]   
+  # 存储大小 Ei Pi Ti Gi Mi Ki 
+  # 下面定义支持400M
+  capacity:
+    storage: 400Mi
+  nfs:
+    path: /data/v2/
+    server: 192.168.1.185
+    
+    
+---
+
+aipVersion: v3
+kind: PersistentVolume
+metedata: 
+  name: pv003
+  labels:
+    name: pv003
+    speed: fast
+spec:
+  #单路只读  单路读写ReadWriteOnce 多路读写ReadWriteMany   
+  accessModes:["ReadWriteMany","ReadWriteOnce"]   
+  # 存储大小 Ei Pi Ti Gi Mi Ki 
+  # 下面定义支持400M
+  capacity:
+    storage: 400Mi
+  nfs:
+    path: /data/v3/
+    server: 192.168.1.185    
+```
+
+
+
+```shell
+kubectl apply -f pv-demo.yaml
+
+# 查看得到pv
+kubectl get pv
+```
+
+
+
+## 3.3 定义PVC与Pod
+
+
+
+> 建立一个目录
+
+```shell
+cd~ ; mkdir pod-v-pvc ;cd pod-v-pvc ; vi mypod.yaml
+```
+
+
+
+> 定义一个文件: mypod.yaml
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mypvc
+  namespace: default
+spec:
+  accessModes: ["ReadWriteMany"] # 必须使PV要求的子集
+  resources:          #资源要求
+    requests:
+      storage: 800Mi
+      
+
+
+---
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - image: alpine
+    name: test-container
+    command:
+    - "/bin/sh"
+    - "-c"
+    - "while true; do echo heloo world; sleep 3; done"
+    
+    volumeMounts:
+    - name: pv-storage
+      mountPath: /test-pd
+  volumes:
+    - name: pv-storage
+      persistentVolumeClaim:
+        claimnmae:mypvc
+
+```
+
+
+
+> 进行测试
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 查看pv是否绑定了
+kubectl get pv
+
+# 查看pvc是否绑定了
+kubectl get pvc
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录，有时候会很奇怪，跟本地的不一样，因为这个机器可能不是本地机器
+kubectl exec -it test-pd /bin/sh
+> ls /test-pd
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+## 3.4 回收策略
+
+* pod 被删除了，PVC还在。
+* PVC 被删除了呢 ?
+  * 取决PV的回收策略
+* 我手工，可以把PV删除呢？
+  * 在新的版本不能删除
+
+
+
+
+
+
+
+
+
+
+
+# 4. Secret
 
 参考文档[Kubernetes对象之Secret](https://www.jianshu.com/p/958f406ec071)
 
@@ -403,7 +730,7 @@ Secret有三种类型：
 
 
 
-## 3.1 Secret的使用
+## 4.1 Secret的创建 
 
 当前只使用：type: Opaque 的创建模式，具体可以看下面的内容
 
@@ -411,16 +738,16 @@ Secret有三种类型：
 
 
 
-## 3.2 Secret的使用
+## 4.2 Secret的使用
 
 创建好Secret之后，可以通过两种方式使用：
 
-- 以Volume方式，见[2.5 secret](#2.5 secret)
+- 以Volume方式，见[2.3.1 secret](#2.3.1 secret)
 - 以环境变量方式
 
 
 
-### 3.2.1 以环境变量方式
+### 4.2.1 以环境变量方式
 
 > 建立一个目录
 
@@ -513,13 +840,13 @@ kubectl delete -f mypod.yaml
 
 
 
-### 3.2.2 以Volume方式
+### 4.2.2 以Volume方式
 
-见[2.5 secret](#2.5 secret)
+见[2.3.1 secret](#2.3.1 secret)
 
 
 
-# 4. ConfigMap
+# 5. ConfigMap
 
 ConfigMap顾名思义，是用于保存配置数据的键值对，可以用来保存单个属性，也可以保存配置文件。
 
@@ -527,7 +854,7 @@ ConfigMap顾名思义，是用于保存配置数据的键值对，可以用来�
 
 
 
-## 4.1 ConfigMap的创建
+## 5.1 ConfigMap的创建
 
 有以下方法：
 
@@ -538,7 +865,7 @@ ConfigMap顾名思义，是用于保存配置数据的键值对，可以用来�
 
 
 
-### 4.1.1 从key-value字符串创建(不推荐)
+### 5.1.1 从key-value字符串创建(不推荐)
 
 ```shell
 # 创建
@@ -555,7 +882,7 @@ kubectl delete configmap my-config
 
 
 
-### 4.1.2 从env文件创建
+### 5.1.2 从env文件创建
 
 适合遗留的老系统
 
@@ -576,7 +903,7 @@ rm -f config.env
 
 
 
-### 4.1.3 从目录创建
+### 5.1.3 从目录创建
 
 适合内容非常多的情况
 
@@ -599,7 +926,7 @@ rm -rf config
 
 
 
-### 4.1.4 根据yaml描述文件创建
+### 5.1.4 根据yaml描述文件创建
 
 
 
@@ -641,5 +968,184 @@ rm -rf config.yaml
 
 
 
-## 4.2 ConfigMap的使用
+## 5.2 ConfigMap的使用
 
+Pod可以通过三种方式来使用ConfigMap，分别为：
+
+- 将ConfigMap中的数据设置为环境变量
+- 将ConfigMap中的数据设置为命令行参数
+- 使用Volume将ConfigMap作为文件或目录挂载
+
+
+
+### 5.2.1 环境变量方式
+
+> 建立一个目录
+
+```shell
+mkdir config-env ; cd config-env
+vi mypod.yaml
+```
+
+
+
+
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config
+data:
+  special.how: very
+  special.type: charm123546/test/12234
+  
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-config
+data:
+  log_level: INFO
+  
+---
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - image: alpine
+    name: test-container
+    command:
+    - "/bin/sh"
+    - "-c"
+    - "while true; do echo heloo world; sleep 3; done"
+    
+    # 下面方式可以key的名字
+    env:
+    - name: HOW
+      valueFrom:
+        configMapKeyRef:
+          name: my-config
+          key: special.how
+    - name: TYPE
+      valueFrom:
+        configMapKeyRef:
+          name: my-config
+          key: special.type
+          
+    # 下面方式可以直接从一个大配置文件来引用      
+    envFrom:
+        - configMapRef:
+            name: env-config  
+```
+
+
+
+> 进行测试
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> echo $HOW
+> echo $TYPE  
+> echo $log_level  
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+### 5.2.2 命令行参数
+
+> 建立一个目录
+
+```shell
+cd ~ ; mkdir config-cmd ; cd config-cmd ; vi mypod.yaml
+
+```
+
+
+
+
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config
+data:
+  special.how: very
+  special.type: charm123546/test/12234
+  
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - image: alpine
+    name: test-container
+    command:
+    - "/bin/sh"
+    - "-c"
+    - "echo $(HOW) $(HOW);while true; do echo heloo world; sleep 3; done"
+    
+    env:
+    - name: HOW
+      valueFrom:
+        configMapKeyRef:
+          name: my-config
+          key: special.how
+    - name: TYPE
+      valueFrom:
+        configMapKeyRef:
+          name: my-config
+          key: special.type
+```
+
+
+
+> 进行测试
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> echo $HOW :  $TYPE
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+### 5.2.3 Volume挂载
+
+详细内容见[2.3.2 configMap](#2.3.2 configMap)

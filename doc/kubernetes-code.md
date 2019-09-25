@@ -1,6 +1,6 @@
 # kubernetes 代码示例
 
-确保每个例子的代码都可以运行。
+确保每个例子的代码都可以运行。参考了[马哥kubernetes入门](https://pdf.us/tag/kubernetes/page/3)
 
 
 
@@ -13,25 +13,666 @@
 
 
 
+# 基本概念
+
+![alt](imgs/218142549.jpg)
+
+
+
+
+
+![alt](imgs/0190218170105.jpg)
+
+
+
+![alt](imgs/20190218170135.jpg)
+
+
+
 # 1. Pod
 
+使用容器标准方式：一个容器仅运行一个进程
+
+[参考网址](https://pdf.us/2019/02/19/2803.html)
+
+
+
+## 1.1 Hello Pod
+
+
+
+```shell
+cd ~ ; mkdir 1-1 ; cd 1-1
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","while true; do sleep 30; done"]
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+## 1.2 设置环境变量
+
+应用程序若不支持从环境变量获取配置，可通过 entrypoint 脚本完成环境变量到程序配置文件的同步
+
+向Pod对象中容器传递环境变量有两种方法：env 和 envFrom。envFrom见[8.2 ConfigMap的使用](#8.2 ConfigMap的使用)
+
+
+
+```shell
+cd ~ ; mkdir 1-2 ; cd 1-2
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: filebeat
+    image: ikubernetes/filebeat:5.6.5-alpine
+    env:
+    - name: REDIS_HOST
+      value: db.ilinux.io:6379
+    - name: LOG_LEVEL
+      value: info
+```
+
+
+
+```shell
+
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> echo REDIS_HOST
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+## 1.3 共享节点网络
+
+仅需设置 spec.hostNetwork 为 true.
+
+IP地址为节点的IP地址，并且端口也暴漏出来了。
+
+
+
+```shell
+cd ~ ; mkdir 1-3 ; cd 1-3
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: my-test
+    image: fanhualei/tomcat-alpine:v1
+  hostNetwork: true
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 看那个节点的ip网页
+curl 192.168.1.186:8080
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> ip add
+> exit
+
+
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+## 1.4 权限和访问控制
 
 
 
 
-# 2. Service
+
+```shell
+cd ~ ; mkdir 1-4 ; cd 1-4
+vi mypod.yaml
+```
 
 
 
-# 3. Volume
+> mypod.yaml 详细
+
+设定Pod或容器的权限和访问控制.
+
+以uid1000的非特权用户运行容器并禁止权限升级
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: my-test
+    image: alpine
+    command: ["/bin/sh","-c","sleep 86400"]
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+```
 
 
 
-## 3.1 局部存储
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> ps aux
+> exit
 
 
 
-### 3.1.1 emptyDir
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+
+
+## 1.5 设置标签
+
+
+
+```shell
+cd ~ ; mkdir 1-5 ; cd 1-5
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+资源标签 labels 位于 **metadata** 下
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+  labels:
+    type: pod
+    use: web
+    speed: fast
+spec:
+  containers:
+  - name: my-test
+    image: alpine
+    command: ["/bin/sh","-c","sleep 86400"]
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 查看标签
+kubectl get pods --show-labels
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide  --show-labels
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> exit
+
+
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+> 标签选择器高级用法
+
+**原则：**
+同时指定的多个选择器是 AND 与 操作
+使用空值标签，表示选择全部
+空的标签选择器，表示没有资源被选择
+
+
+
+**基于集合关系的选择器：**
+key in (val1,val2,...)    在集合中即可
+key notin (val1,val2,...)   不在集合中
+key  所有存在此键名标签的资源
+!key 所有不存在此键名标签的资源
+
+
+
+```shell
+#标签选择器 Label Selector
+kubectl get pods -l use=web
+kubectl get pods -l use!=web
+kubectl get pods -l use==web
+kubectl get pods -l use=web,name=ma   # 多个选择器
+
+kubectl get pods -l "type in (pod,svc)"
+kubectl get pods -l "type notin  (pod,svc)"
+kubectl get pods -l "type"  #所有存在此键名标签的资源
+kubectl get pods -l 'type in (pod,svc),!name' 
+```
+
+
+
+## 1.6 标签选择器
+
+让其他对象找到Pod
+
+Service/Deployment/ReplicaSet等关联到Pod对象，通过在spec字段嵌套selector字段，通过matchLabels指定标签选择器。
+
+* matchLabels 直接用键值对
+* matchExpressions 基于表达式指定标签选择器列表
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysvc
+spec:
+  selector:
+    matchLabels:
+      app: test
+    matchExpressions:
+    - { key: tier, operator: In, values: [cache,foo]} #In和NotIn
+    - { key: environment, opetator: Exists,values:}  #Exists和DostNotExist时values必须为空  
+```
+
+
+
+## 1.7 发布到特定节点中
+
+可以指定Pod发布到特定的宿主机器上，例如这些机器上有ssd硬盘
+
+### 第一步、给节点设置标记
+
+```shell
+kubectl get nodes --show-labels
+kubectl label nodes kube-node1 disktype=ssd  # 为节点添加标签
+kubectl get nodes -L disktype
+```
+
+
+
+### 第二步、选择节点
+
+让Pod在选定节点上运行,实现节点亲和性调度，**spec.nodeSelector**
+绑定到特定节点还有一种方法 使用 **spec.nodeName（不常用，这种写的太死了）**
+
+
+
+```shell
+cd ~ ; mkdir 1-7 ; cd 1-7
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  nodeSelector:
+    matchLabels:
+      disktype: sdd
+  #nodeName: 节点名称  
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","while true; do sleep 30; done"]
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+## 1.8 生命周期
+
+![alt](imgs/0190221152827.jpg)
+
+
+
+### 1.8.1 初始化容器
+
+主容器启动之前要运行的容器，常用于执行一些预置操作
+初始化容器必须运行完成至结束，每个初始化容器都必须按定义顺序串行运行
+
+例如gitRepo这个取消了，可以通过初始化容器来实现类似的功能
+
+
+
+```shell
+cd ~ ; mkdir 1-8-1 ; cd 1-8-1
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+spec.initContainers 定义
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","while true; do sleep 300; done"]
+  initContainers:  
+  - name: init-app
+    image: alpine
+    command: ['sh','-c','sleep 20']  
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+### 1.8.2 钩子函数
+
+**如何设置**
+
+* kubectl explain pods.spec.containers.lifecycle.postStart.exec
+
+* postStart，
+  * 容器创建完成后立即运行，不保证一定会于容器中ENTRYPOINT之前运行
+* preStop，
+  * 容器终止操作之前立即运行，在其完成前会阻塞删除容器的操作调用
+
+**钩子处理器实现方式**：
+
+* Exec，在钩子事件触发时，直接在当前容器中运行由用户定义的命令
+* HTTP，在当前容器中向某Url发起HTTP请求
+
+
+
+
+
+```shell
+cd ~ ; mkdir 1-8-2 ; cd 1-8-2
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+spec.initContainers 定义
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","while true; do sleep 300; done"]
+  initContainers:  
+  - name: init-app
+    image: alpine
+    command: ['sh','-c','sleep 20']  
+    
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh","-c","echo 'lifecycle hooks handler' > /home/index.html"]    
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+kubectl exec lifecycle-demo -- cat /home/index.html
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> exit
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+### 1.8.3 容器探测
+
+**设置点**
+
+- pods.spec.containers.livenessProbe
+- pods.spec.containers.readinessProbe
+
+**探测方法**
+
+- ExecAction，在容器内执行命令，检测状态码是否为0
+- TCPSocketAction，与容器的某tcp端口尝试连接，端口打开即为正常
+- HTTPGetAction，向容器某端口发起get请求，响应码为2xx 3xx即为正常
+
+**处理逻辑**
+
+* 存活性检测 livenessProbe
+  * 判定容器是否为Running状态，不通过则杀死容器，未定义存活性检测默认为 Success
+* 就绪性检测 readinessProbe
+  * 判断容器是否就绪并可对外提供服务，不通过则不会添加到Service对象端点列表中
+
+
+
+### 1.8.4 容器重启策略
+
+> pods.spec.restartPolicy
+
+- Always，默认，总是重启
+- OnFailure，出错时重启
+- Never，不重启
+
+`反复重启的延迟时间：10、20、40、80、160、300秒逐次延长，最大300秒`
+
+
+
+### 1.8.5 设置容器终止宽限期
+
+系统强制删除操作宽限期倒计时(30s)启动，发送TERM信号到Pod中每个容器的主进程，倒计时结束，发送KILL信号
+--grace-period=<seconds> 自定义宽限期时长，默认30秒
+
+
+
+
+
+# 2. Controller
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 3. Service
+
+
+
+
+
+
+
+# 4. Volume
+
+
+
+## 4.1 局部存储
+
+
+
+### 4.1.1 emptyDir
 
 同一容器组中的不同容器都可以对该目录执行读写操作，并且共享其中的数据。
 
@@ -114,7 +755,7 @@ kubectl explain pods.spec.volumes.emptydir
 
 
 
-### 3.1.2 hostPath
+### 4.1.2 hostPath
 
 将**所在节点**的文件系统上某一个文件或文件夹挂载进容器组（容器）。
 
@@ -203,7 +844,7 @@ kubectl delete -f mypod.yaml
 
 
 
-### 3.1.3 gitRepo
+### 4.1.3 gitRepo
 
 
 
@@ -211,11 +852,11 @@ gitRepo卷类型已弃用。要为容器提供git存储库，[请将EmptyDir](ht
 
 
 
-## 3.2 持久化存储
+## 4.2 持久化存储
 
 
 
-### 3.2.1 nfs 网络
+### 4.2.1 nfs 网络
 
 - 可以在加载 NFS 数据卷前就在其中准备好数据；
 - 可以在不同容器组之间共享数据；
@@ -262,7 +903,7 @@ spec:
   volumes:
     - name: nfs-storage
       nfs:
-        server: 192.168.1.185
+        server: 192.169.1.185
         path: "/"   # 这个目录必须有，不然就建立不了容器
 ```
 
@@ -290,9 +931,9 @@ kubectl delete -f mypod.yaml
 
 
 
-## 3.3 配置型存储
+## 4.3 配置型存储
 
-### 3.3.1 secret
+### 4.3.1 secret
 
 Kubemetes提供了Secret来处理敏感数据，比如密码、Token和密钥，相比于直接将敏感数据配置在Pod的定义或者镜像中，Secret提供了更加安全的机制（Base64加密），防止数据泄露。Secret的创建是独立于Pod的，以数据卷的形式挂载到Pod中，Secret的数据将以文件的形式保存，容器通过读取文件可以获取需要的数据。
 
@@ -399,7 +1040,7 @@ kubectl delete -f mypod.yaml
 
 
 
-### 3.3.2 configMap
+### 4.3.2 configMap
 
 ​	建立一个目录
 
@@ -477,7 +1118,7 @@ kubectl delete -f mypod.yaml
 
 
 
-# 4. PVC和PV
+# 5. PVC和PV
 
 为什么又PV和PVC这个概念呢？ 上面学习中，可以看到用户要手工关联Volume，这样就强关联了。 实际上管理员可以定义一些不同大小或读取速度的空间，然后告诉程序员那些空间可以选择，这样程序员就不用知道这些空间到底背后实现的机制，这样就完全解耦合了。
 
@@ -495,7 +1136,7 @@ kubectl delete -f mypod.yaml
 
 
 
-## 4.1 创建存储空间
+## 5.1 创建存储空间
 
 > 创建目录
 
@@ -519,11 +1160,11 @@ vi /etc/exports
 > exports文件
 
 ```
-/home/data/v1/ 192.168.1.0/24(rw,sync)
-/home/data/v2/ 192.168.1.0/24(rw,sync)
-/home/data/v3/ 192.168.1.0/24(rw,sync)
-/home/data/v4/ 192.168.1.0/24(rw,sync)
-/home/data/v5/ 192.168.1.0/24(rw,sync)
+/home/data/v1/ 192.169.1.0/24(rw,sync)
+/home/data/v2/ 192.169.1.0/24(rw,sync)
+/home/data/v3/ 192.169.1.0/24(rw,sync)
+/home/data/v4/ 192.169.1.0/24(rw,sync)
+/home/data/v5/ 192.169.1.0/24(rw,sync)
 ```
 
 
@@ -539,7 +1180,7 @@ showmount -e
 
 
 
-## 4.2 定义PV
+## 5.2 定义PV
 
 k8s管理员来做这件事。`kubectl explain pv` 来查看帮助
 
@@ -584,7 +1225,7 @@ spec:
   #persistentVolumeReclaimPolicy: Recycle
   nfs:
     path: /home/data/v1/
-    server: 192.168.1.185
+    server: 192.169.1.185
     
 ---
 
@@ -605,7 +1246,7 @@ spec:
     storage: 200Mi
   nfs:
     path: /home/data/v2/
-    server: 192.168.1.185
+    server: 192.169.1.185
     
     
 ---
@@ -627,7 +1268,7 @@ spec:
     storage: 200Mi
   nfs:
     path: /home/data/v3/
-    server: 192.168.1.185 
+    server: 192.169.1.185 
 ```
 
 
@@ -641,7 +1282,7 @@ kubectl get pv
 
 
 
-## 4.3 定义PVC与Pod
+## 5.3 定义PVC与Pod
 
 
 
@@ -728,7 +1369,7 @@ kubectl delete -f pv-demo.yaml
 
 
 
-## 4.4 回收策略
+## 5.4 回收策略
 
 * pod 被删除了，PVC还在。
 * PVC 被删除了呢 ?
@@ -740,7 +1381,7 @@ kubectl delete -f pv-demo.yaml
 
 
 
-# 5. StorageClass
+# 6. StorageClass
 
 上一节提到PV与PVC的解决模式，这种模式会让管理员很烦，因为他们要提前建立存储空间，有没有自动建立的机制呢？
 
@@ -755,7 +1396,7 @@ kubectl delete -f pv-demo.yaml
 
 
 
-# 6. Secret
+# 7. Secret
 
 参考文档[Kubernetes对象之Secret](https://www.jianshu.com/p/958f406ec071)
 
@@ -769,7 +1410,7 @@ Secret有三种类型：
 
 
 
-## 6.1 Secret的创建 
+## 7.1 Secret的创建 
 
 当前只使用：type: Opaque 的创建模式，具体可以看下面的内容
 
@@ -777,7 +1418,7 @@ Secret有三种类型：
 
 
 
-## 6.2 Secret的使用
+## 7.2 Secret的使用
 
 创建好Secret之后，可以通过两种方式使用：
 
@@ -786,7 +1427,7 @@ Secret有三种类型：
 
 
 
-### 6.2.1 以环境变量方式
+### 7.2.1 以环境变量方式
 
 > 建立一个目录
 
@@ -879,13 +1520,13 @@ kubectl delete -f mypod.yaml
 
 
 
-### 6.2.2 以Volume方式
+### 7.2.2 以Volume方式
 
 见[2.3.1 secret](#2.3.1 secret)
 
 
 
-# 7. ConfigMap
+# 8. ConfigMap
 
 ConfigMap顾名思义，是用于保存配置数据的键值对，可以用来保存单个属性，也可以保存配置文件。
 
@@ -893,7 +1534,7 @@ ConfigMap顾名思义，是用于保存配置数据的键值对，可以用来�
 
 
 
-## 7.1 ConfigMap的创建
+## 8.1 ConfigMap的创建
 
 有以下方法：
 
@@ -904,7 +1545,7 @@ ConfigMap顾名思义，是用于保存配置数据的键值对，可以用来�
 
 
 
-### 7.1.1 从key-value字符串创建(不推荐)
+### 8.1.1 从key-value字符串创建(不推荐)
 
 ```shell
 # 创建
@@ -921,7 +1562,7 @@ kubectl delete configmap my-config
 
 
 
-### 7.1.2 从env文件创建vi
+### 8.1.2 从env文件创建vi
 
 适合遗留的老系统，支持的文件格式很多，可以是`json,yaml,env` 注意文件尾部不要出现空格，不然可能报错。
 
@@ -944,7 +1585,7 @@ rm -f config.env
 
 
 
-### 7.1.3 从目录创建
+### 8.1.3 从目录创建
 
 适合内容非常多的情况
 
@@ -967,7 +1608,7 @@ rm -rf config
 
 
 
-### 7.1.4 根据yaml描述文件创建
+### 8.1.4 根据yaml描述文件创建
 
 
 
@@ -1009,7 +1650,7 @@ rm -rf config.yaml
 
 
 
-## 7.2 ConfigMap的使用
+## 8.2 ConfigMap的使用
 
 Pod可以通过三种方式来使用ConfigMap，分别为：
 
@@ -1022,7 +1663,7 @@ Pod可以通过三种方式来使用ConfigMap，分别为：
 
 
 
-### 7.2.1 环境变量方式
+### 8.2.1 环境变量方式
 
 > 建立一个目录
 
@@ -1116,7 +1757,7 @@ kubectl delete -f mypod.yaml
 
 
 
-### 7.2.2 命令行参数
+### 8.2.2 命令行参数
 
 > 建立一个目录
 
@@ -1191,7 +1832,7 @@ kubectl delete -f mypod.yaml
 
 
 
-### 7.2.3 Volume挂载
+### 8.2.3 Volume挂载
 
 详细内容见[2.3.2 configMap](#2.3.2 configMap)
 
@@ -1199,25 +1840,11 @@ kubectl delete -f mypod.yaml
 
 
 
-# 8. 控制器
+# 9. StatefulSet
 
 
 
-无状态
-
-有状态： redis zookeeper mysql etcd 
-
-节点有主节点，从节点，有先后顺序，没有一个控制器能控制这些内容。如果更复杂的需要将管理脚本注入statefulset，这部分不再说了
-
-
-
-
-
-## 8.1 StatefulSet
-
-
-
-### 8.1.1 模拟存储空间
+## 9.1 模拟存储空间
 
 如果[4.1 创建存储空间](#4.1 创建存储空间)做过了，那么这一步可以省略。
 
@@ -1245,11 +1872,11 @@ vi /etc/exports
 > exports文件
 
 ```
-/home/data/v1/ 192.168.1.0/24(rw,sync)
-/home/data/v2/ 192.168.1.0/24(rw,sync)
-/home/data/v3/ 192.168.1.0/24(rw,sync)
-/home/data/v4/ 192.168.1.0/24(rw,sync)
-/home/data/v5/ 192.168.1.0/24(rw,sync)
+/home/data/v1/ 192.169.1.0/24(rw,sync)
+/home/data/v2/ 192.169.1.0/24(rw,sync)
+/home/data/v3/ 192.169.1.0/24(rw,sync)
+/home/data/v4/ 192.169.1.0/24(rw,sync)
+/home/data/v5/ 192.169.1.0/24(rw,sync)
 ```
 
 
@@ -1267,7 +1894,7 @@ showmount -e
 
 
 
-### 8.1.2 定义PV
+## 9.2 定义PV
 
 k8s管理员来做这件事。`kubectl explain pv` 来查看帮助
 
@@ -1305,7 +1932,7 @@ spec:
   #persistentVolumeReclaimPolicy: Recycle
   nfs:
     path: /home/data/v1/
-    server: 192.168.1.185
+    server: 192.169.1.185
     
 ---
 
@@ -1326,7 +1953,7 @@ spec:
     storage: 200Mi
   nfs:
     path: /home/data/v2/
-    server: 192.168.1.185
+    server: 192.169.1.185
     
     
 ---
@@ -1348,7 +1975,7 @@ spec:
     storage: 200Mi
   nfs:
     path: /home/data/v3/
-    server: 192.168.1.185  
+    server: 192.169.1.185  
     
 ---
 
@@ -1369,7 +1996,7 @@ spec:
     storage: 200Mi
   nfs:
     path: /home/data/v4/
-    server: 192.168.1.185  
+    server: 192.169.1.185  
     
 ---
 
@@ -1390,7 +2017,7 @@ spec:
     storage: 200Mi
   nfs:
     path: /home/data/v5/
-    server: 192.168.1.185      
+    server: 192.169.1.185      
     
     
 ```
@@ -1406,7 +2033,7 @@ kubectl get pv
 
 
 
-### 8.1.3 创建StatefulSet
+## 9.3 创建StatefulSet
 
 具体步骤如下：
 
@@ -1502,7 +2129,7 @@ kubectl get -f mypod.yaml -o wide
 kubectl get pods -o wide
 
 # 查看无头服务的IP地址
-dig -t A mysvc.default.svc.cluster.local. @10.96.0.10
+dig -t A mysvc.default.svc.cluster.local. @10.97.0.10
 
 
 #StatefulSet在Headless Service的基础上又为StatefulSet控制的每个Pod副本创建了一个DNS域名，这个域名的格式为：
@@ -1540,7 +2167,7 @@ kubectl delete -f pv-demo.yaml
 
 
 
-### 8.1.4 针对某个节点升级
+## 9.4 针对某个节点升级
 
 如果你删除了节点，需要重新制作一下环境。
 
@@ -1560,7 +2187,7 @@ kubectl patch sts myset -p '{"spec":{"replicas":4}}'
 kubectl get pv -o wide
 
 
-# 大于三的才更新
+# 大于3的才更新
 kubectl patch sts myset -p  '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":3}}}}'
 
 # 进行升级

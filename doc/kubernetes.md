@@ -68,7 +68,7 @@
 
 * [虚拟机安装](virtualbox.md)
 
-* [kubernetes安装](kubernetes-kubeadm.md)
+* [kubernetes安装](kubernetes-install.md)
 
 * [Kubernetes 入门](kubernetes-quict-start.md)
 

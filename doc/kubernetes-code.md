@@ -1,5 +1,7 @@
 # kubernetes 代码示例
 
+确保每个例子的代码都可以运行。
+
 
 
 [TOC]
@@ -1347,6 +1349,50 @@ spec:
   nfs:
     path: /home/data/v3/
     server: 192.168.1.185  
+    
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata: 
+  name: pv004
+  labels:
+    name: pv004
+    speed: fast
+
+spec:
+  #单路只读  单路读写ReadWriteOnce 多路读写ReadWriteMany   
+  accessModes: ["ReadWriteMany","ReadWriteOnce"]   
+  # 存储大小 Ei Pi Ti Gi Mi Ki 
+  # 下面定vi义支持1G
+  capacity:
+    storage: 200Mi
+  nfs:
+    path: /home/data/v4/
+    server: 192.168.1.185  
+    
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata: 
+  name: pv005
+  labels:
+    name: pv005
+    speed: fast
+
+spec:
+  #单路只读  单路读写ReadWriteOnce 多路读写ReadWriteMany   
+  accessModes: ["ReadWriteMany","ReadWriteOnce"]   
+  # 存储大小 Ei Pi Ti Gi Mi Ki 
+  # 下面定vi义支持1G
+  capacity:
+    storage: 200Mi
+  nfs:
+    path: /home/data/v5/
+    server: 192.168.1.185      
+    
+    
 ```
 
 
@@ -1400,7 +1446,7 @@ spec:
   #  rollingUpdate:
   #    partition: 2   # 只有大于等于2的才进行更新。
   serviceName: mysvc  #选择服务
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: test
@@ -1491,4 +1537,40 @@ kubectl delete -f pv-demo.yaml
 
 
 ```
+
+
+
+### 8.1.4 针对某个节点升级
+
+如果你删除了节点，需要重新制作一下环境。
+
+```shell
+# 减少容器，
+kubectl patch sts myset -p '{"spec":{"replicas":2}}'
+
+# kubectl get pods -o wide
+
+# 节点虽然少了，但是pv的绑定还在
+kubectl get pv -o wide
+
+# 增加容器
+kubectl patch sts myset -p '{"spec":{"replicas":4}}'
+
+# 节点有绑定回去了
+kubectl get pv -o wide
+
+
+# 大于三的才更新
+kubectl patch sts myset -p  '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":3}}}}'
+
+# 进行升级
+kubectl set image sts myset *=fanhualei/tomcat-alpine:v3 
+
+# 改变节点信息，分别查看每个节点的信息
+kubectl get pod myset-2 -o yaml | grep image
+```
+
+
+
+
 

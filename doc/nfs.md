@@ -33,9 +33,9 @@ chown nfsnobody.nfsnobody /home/nfs
 编辑exports文件，添加那些客户端可以访问
 
 ```
-vim /etc/exports
+vi /etc/exports
 /home/nfs/ 192.168.1.0/24(rw,sync,fsid=0)
-# 也可以这么来设置  
+# 也可以这么来设置,下面不安全  
 #/home/nfs2/ 192.168.1.0/24 (rw,no_root_squash)
 ```
 
@@ -93,6 +93,10 @@ exportfs
 
 
 
+
+
+
+
 # 2.客户端配置
 
 
@@ -107,7 +111,7 @@ yum install -y nfs-utils
 
 ## 第二步、确保rpcbind服务启动
 
-centos7默认是启动的。
+centos7默认是启动的。m
 
 ```shell
 systemctl status rpcbind.service
@@ -149,6 +153,25 @@ touch c.txt
 
 
 
+## 第六步、卸载
+
+## 
+
+```shell
+umount -l nfs 192.168.1.185:/home/nfs /home/nfs
+```
+
+
+
+## 第七步、开机挂载
+
+手工挂载是，如果重启客户端，挂载就会消失，那么怎么做到开机挂载呢？ 百度一下，然后看看命令。
+
+如果放在k8s中，就不用指定了。
+
+
+
 > 参考网址
 
 * [Centos7安装配置NFS服务和挂载教程(推荐)](https://www.jb51.net/article/126091.htm)
+* [nfs挂载目录删除，恢复客户端挂载](https://www.jianshu.com/p/cfa02764d19e)

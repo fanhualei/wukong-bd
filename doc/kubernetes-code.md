@@ -1,4 +1,4 @@
-# kubernetes 代码示例
+# 互动教程
 
 确保每个例子的代码都可以运行。参考了[马哥kubernetes入门](https://pdf.us/tag/kubernetes/page/3)
 
@@ -538,7 +538,7 @@ spec:
   - name: myapp
     image: alpine
     command: ["/bin/sh"]
-    args: ["-c","while true; do sleep 300; done"]
+    args: ["-c","while true; do sleep 3; done"]
   initContainers:  
   - name: init-app
     image: alpine
@@ -608,20 +608,7 @@ spec:
   - name: myapp
     image: alpine
     command: ["/bin/sh"]
-    args: ["-c","while true; do sleep 300; done"]
-  initContainers:  
-  - name: init-app
-    image: alpine
-    command: ['sh','-c','sleep 20']  
-    
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pd
-spec:
-  containers:
-  - name: myapp
-    image: alpine
+    args: ["-c","while true; do sleep 3; done"]
     lifecycle:
       postStart:
         exec:
@@ -640,7 +627,7 @@ kubectl get -f mypod.yaml -o wide
 # 查看详细信息
 kubectl describe -f mypod.yaml
 
-kubectl exec lifecycle-demo -- cat /home/index.html
+kubectl exec test-pd -- cat /home/index.html
 
 # 查看生成的目录
 kubectl exec -it test-pd /bin/sh
@@ -727,7 +714,7 @@ shell命令
 test -e /tmp/healthy   # 若在在则返回0 不存在返回1
 
 ```yaml
-apiVersion: v1
+viapiVersion: v1
 kind: Pod
 metadata:
   name: test-pd
@@ -801,11 +788,10 @@ spec:
     livenessProbe:
       httpGet:
         path: /healthz.html
-        port: http
-        scheme: HTTP
+        port: 8080
 ```
 
-
+如果配置错误，*有可能容器正确运行*，但是不会重启
 
 ```shell
 # 生成pod
@@ -820,7 +806,12 @@ kubectl describe -f mypod.yaml
 #一个窗口监控
 kubectl get -f mypod.yaml -o wide -w
 # 删除测试页面
-kubectl exec liveness-http -- rm /opt/webapp/healthz.html
+kubectl exec test-pd -- rm /opt/webapp/healthz.html
+
+# 查看生成的目录
+kubectl exec -it test-pd /bin/sh
+> ls /opt/webapp/
+> exit
 
 # 删除
 kubectl delete -f mypod.yaml
@@ -874,8 +865,8 @@ spec:
     
     livenessProbe:
       tcpSocket:  
-        port: 80
-      initianDelaySeconds: 5 
+        port: 8080
+      initialDelaySeconds: 5 
       timeoutSeconds: 2 
 ```
 
@@ -895,7 +886,7 @@ kubectl describe -f mypod.yaml
 kubectl get -f mypod.yaml -o wide -w
 # 登录 手工关掉tomcat
 kubectl exec -it test-pd /bin/sh
-> 
+> /opt/tomcat/bin/shutdown.sh
 
 
 # 删除
@@ -938,7 +929,7 @@ spec:
   - name: myapp
     image: alpine
     command: ["/bin/sh"]
-    args: ["-c","touch /tmp/healthy; sleep 20; rm -rf /tmp/healthy; sleep 100"]
+    args: ["-c","touch /tmp/healthy; sleep 20; rm -rf /tmp/healthy; sleep 20"]
     readinessProbe:
       exec:
         command: ["test","-e","/tmp/healthy"]
@@ -1060,17 +1051,694 @@ stress参数和用法都很简单：
 
 
 
+## 1.12 多容器之间通讯
+
+kubernetes不建议一个pod中有多个容器
+
+
+
+参考[kubernetes之多容器pod以及通信](https://www.cnblogs.com/tylerzhou/p/11009412.html)
+
+容器经常是为了解决单一的,窄范围的问题,比如说微服务.然而现实中,一些复杂问题的完成往往需要多个容器.这里我们讨论一下如何把多个容器放在同一个pod里以及容器间的通信
+
+* 容器的依赖关系和启动顺序
+  * 不能保证那个先启动，因为时并行的。
+  * 如果要顺序启动，那么使用初始容器(init container)
+
+* 同一pod的容器间网络通信
+  * 可以通过'localhost'来进行通信
+  * 它们共享同一个Ip和相同的端口空间
+
+* 同一个pod暴露多个容器
+  * 在一个服务里暴露不同的端口来实现
+
+
+
+
+
+### 1.12.1 共享存储卷
+
+
+
+```shell
+cd ~ ; mkdir 1-multi ; cd 1-multi
+vi mypod.yaml
+```
+
+
+
+
+
+> mypod.yaml
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mc1
+spec:
+  volumes:
+  - name: html
+    emptyDir: {}
+  containers:
+  - name: 1st
+    image: fanhualei/tomcat-alpine
+    command: ["tomcat"]
+    args: ["run"]
+    volumeMounts:
+    - name: html
+      mountPath: /opt/webapp
+      
+  - name: 2nd
+    image: alpine
+    volumeMounts:
+    - name: html
+      mountPath: /html
+    command: ["/bin/sh", "-c"]
+    args:
+      - while true; do
+          date >> /html/index.html;
+          sleep 10;
+        done
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+kubectl exec mc1 -c 1st -- /bin/cat /opt/webapp/index.html
+kubectl exec mc1 -c 2nd -- /bin/cat /html/index.html
+
+#登录到不同的容器
+kubectl exec -it mc1 -c 1st  /bin/sh
+kubectl exec -it mc1 -c 2nd  /bin/sh
+
+# 查看pod的端口
+curl 10.100.1.230:8080
+
+
+# 查看详细信息do
+kubectl describe -f mypod.yaml
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+### 1.12.2 进程间通信
+
+不建议使用
+
+同一个pod里的容器共享IPC名称空间,这就意味着他们可以通过进程间通信的手段来进行通信,比如使用`SystemV semaphores`或者`POSIX`共享内存
+
+
+
+```shell
+cd ~ ; mkdir 1-ipc ; cd 1-ipc
+vi mypod.yaml
+```
+
+
+
+
+
+```yaml
+# 下面的例子不能执行，应为没有安装ipc中程序，在alpine中
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mc2
+spec:
+  containers:
+  - name: producer
+    image: alpine
+    command: ["./ipc", "-producer"]
+  - name: consumer
+    image: alpine
+    command: ["./ipc", "-consumer"]
+  restartPolicy: Never
+```
+
+
+
+然后通过kubectl create来创建pod,用下面命令来查看状态
+
+```
+$ kubectl get pods --show-all -w
+NAME      READY     STATUS              RESTARTS  AGE
+mc2       0/2       Pending             0         0s
+mc2       0/2       ContainerCreating   0         0s
+mc2       0/2       Completed           0         29
+```
+
+这时候你可以检测每一个容器的日志来检测第二个队列是否消费了第一个队列生产的所有消息包括退出消息
+
+```
+$ kubectl logs mc2 -c producer
+...
+Produced: f4
+Produced: 1d
+Produced: 9e
+Produced: 27
+$ kubectl logs mc2 -c consumer
+...
+Consumed: f4
+Consumed: 1d
+Consumed: 9e
+Consumed: 27
+Consumed: done
+```
+
+
+
+
+
+
+
 
 
 # 2. Controller
 
+Pod控制器通常包含三个组成部分：
+标签选择器，期望的副本数，Pod模板
+
+## 2.1 Deployment
+
+Deployment构建于ReplicaSet之上，支持事件和状态查看，回滚，版本记录，暂停和启动升级。
+
+多种自动更新方案：
+
+* Recreate，先删除再新建；
+* RollingUpdate，滚动升级，逐步替换
+
+
+
+### 2.1.1 创建
+
+
+
+```shell
+cd ~ ; mkdir 2-deployment ; cd 2-deployment
+vi mydeploy.yaml
+```
+
+
+
+> mydeploy.yaml 详细
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-deploy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp
+        image: fanhualei/tomcat-alpine:v1
+        command: ["tomcat"]
+        args: ["run"]
+        ports:
+        - name: http
+          containerPort: 8080
+```
+
+
+
+```shell
+# 生成对象
+kubectl apply -f mydeploy.yaml
+
+# 看看启动了没有
+kubectl get -f mydeploy.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mydeploy.yaml
+
+# 删除
+kubectl delete -f mydeploy.yaml
+```
+
+
+
+### 2.1.2 设置更新策略
+
+* spec.strategy.rollingUpdate.**maxSurge**
+  * 升级期间允许的总Pod数超出期望值的个数
+  * 可以是具体数值或百分比，若为1，则表示可超出1个
+* spec.strategy.rollingUpdate.**maxUnavailable**
+  * 滚动升级时允许的最大Unavailable的pod个数
+  * 可为具体数值或百分比
+* spec.**minReadySeconds**
+  * 可控制更新速度，此时间内更新操作会被阻塞
+* spec.**revisionHistoryLimit**
+  * 控制保存历史版本的数量
+
+*注意，maxSurge和maxUnavailable不能同时为0，否则无法升级*
+
+```shell
+#要记录历史版本需要在创建Deployment时使用 --record选项
+kubectl apply -f mydeploy.yaml --record
+
+# 修改间隔时间
+kubectl patch deployments.apps myapp-deploy -p '{"spec":{"minReadySeconds":5}}'
+
+# 修改镜像 触发滚动更新
+kubectl set image deployments.apps myapp-deploy myapp=fanhualei/tomcat-alpine:v2
+
+# 查看滚动更新过程中状态信息
+kubectl rollout status deployment myapp-deploy
+kubectl get deployments.apps myapp-deploy --watch
+
+# 旧的replicasets会保留 但此前管理的Pod对象会删除
+kubectl get replicasets.apps -l app=myapp
+kubectl get deployments.apps -l app=myapp
+
+# 访问 curl $(kubectl get pods myapp-deploy-79d4d5d95f-k2b7x -o go-template={{.status.podIP}})
+```
+
+
+
+### 2.1.3 金丝雀发布
+
+金丝雀对瓦斯气体敏感，工人下井时，用来检测空气。
+
+发布时，第一批更新完成后，暂停升级，新旧同时提供服务，其中新的很少，待确认没有问题后，完成余下部分的升级。
+
+```shell
+# 先添加一个新Pod 设置maxSurge为1，maxUnavailable为0
+kubectl patch deployments.apps myapp-deploy -p '{"spec":{"strategy":{"rollingUpdate":{"maxSurge":1,"maxUnavailable":0}}}}'
+
+
+#启动更新 在启动后，在maxReadySeconds属性设置的时间内执行暂停 通常使用&&
+kubectl set image deployments myapp-deploy myapp=fanhualei/tomcat-alpine:v3 && kubectl rollout pause deployment myapp-deploy
+
+# 查看进度:此时，可将一部分流量引入新Pod上，进行验证
+kubectl rollout status deployment myapp-deploy
+kubectl get replicasets.apps
+
+# 验证通过后 继续升级
+kubectl rollout resume deployment myapp-deploy
+
+# 验证不过，就回滚
+kubectl rollout undo deployment myapp-deploy
+```
+
+
+
+### 2.1.4 回滚操作
+
+回滚到之前版本或指定的历史版本
+
+```shell
+# 回滚到之前的版本
+kubectl rollout undo deployment myapp-deploy
+# 查看历史版本
+kubectl rollout history deployment myapp-deploy
+# 查看当前版本
+kubectl describe deployments.apps myapp-deploy
+# 回滚到第1个版本
+kubectl rollout undo deployment myapp-deploy --to-revision=1
+```
+
+若此前滚动更新过程处于暂停状态，那么回滚操作需要先将Pod模板的版本改回到之前的版本，然后继续更新，否则会一直处理暂停状态而无法回滚
+
+
+
+### 2.1.5 扩容和缩容
+
+修改spec.replicas的值，可用kubectl apply、kubectl edit、kubectl scale等命令实现
+
+```shell
+# 回滚到之前的版本
+kubectl scale --replicas=3 -f mydeploy.yaml
+
+kubectl edit deployment/myapp-deploy
+
+# kubectl apply  修改原先的文件后，再执行
+```
+
+
+
+## 2.2 DaemonSet
+
+在集群中所有节点同时运行的Pod，新加入的节点也会自动创建，节点从集群移除时会自动回收.
+
+可用节点选择器及节点标签指定仅在部分节点运行
+
+常用于存储、日志、监控类守护进程
+
+
+
+### 2.2.1 创建
+
+
+
+```shell
+cd ~ ; mkdir 2-daemonSet ; cd 2-daemonSet
+vi mydeploy.yaml
+```
+
+
+
+> myDaemonSet.yaml 详细
+
+DaemonSet 不支持 replicas参数，默认不会部署到master节点
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-ds
+spec:
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp
+        image: fanhualei/tomcat-alpine:v1
+        command: ["tomcat"]
+        args: ["run"]
+        ports:
+        - name: http
+          containerPort: 8080
+```
+
+
+
+### 2.2.2 查看
+
+```shell
+# 生成对象
+kubectl apply -f myDaemonSet.yaml
+
+# 看看启动了没有
+kubectl get -f myDaemonSet.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f myDaemonSet.yaml
+
+kubectl describe daemonsets.apps my-ds
+kubectl get pods -l app=myapp -o custom-columns=NAME:metadata.name,NODE:spec.nodeName
+
+# 如何访问到daemonSet,通过node的IP地址，还是自己的IP?
+
+# 删除
+kubectl delete -f myDaemonSet.yaml
+```
+
+
+
+### 2.2.3 升级
+
+更新配置定义在 spec.updateStrategy 下，支持 RollingUpdate 滚动更新 和 OnDelete 删除时更新(删除后重建启用新版本)
+
+```
+kubectl set image daemonsets my-ds myapp=fanhualei/tomcat-alpine:v2
+```
+
+
+
+## 2.3 Job
+
+运行一次性任务，容器中进程在正常结束后不会再重启
+
+### 2.3.1 非并行作业
+
+- 通常，除非Pod发生故障，否则仅启动一个Pod。
+- 一旦Pod成功终止，作业即完成。
+
+
+
+```shell
+cd ~ ; mkdir 2-job ; cd 2-job
+vi myjob.yaml
+```
+
+
+
+> myjob.yaml 详细
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-example
+spec:
+  template:
+    spec:
+      containers:
+      - name: myjob
+        image: alpine
+        command: ["/bin/sh","-c","echo i love you ; sleep 120"]
+      # template下默认restartPolicy为Always 对Job不适用
+      # 必须显式指定为Never 或 OnFailure
+      restartPolicy: Never
+```
+
+
+
+```shell
+kubectl apply -f myjob.yaml
+
+kubectl describe -f myjob.yaml
+
+pods=$(kubectl get pods --selector=job-name=job-example --output=jsonpath='{.items[*].metadata.name}')
+echo $pods
+
+# 查看其中一个Pod的标准输出
+kubectl logs $pods
+```
+
+
+
+### 2.3.2 并行作业
+
+spec.parallelism 并行度属性；spec.completion 总任务数
+
+串行运行5次任务：spec.parallelism=1 spec.completion=5
+并行2队列5次任务：spec.parallelism=2 spec.completion=5
+
+
+
+1. 固定完成计数的并行作业：
+   - 为指定非零的正值`.spec.completions`。
+   - Job代表整体任务，并且在1到范围内的每个值都有一个成功的Pod时完成`.spec.completions`。
+   - **尚未实现：**每个Pod传递了1到范围内的不同索引`.spec.completions`。
+2. 具有工作队列的并行作业：
+   - Pod必须在彼此之间或外部服务之间进行协调，以确定每个Pod应该如何处理。例如，一个Pod可以从工作队列中获取最多N批的批处理。
+   - 每个Pod都可以独立地确定其所有对等方是否都已完成，从而确定了整个Job。
+   - 当作业中的*任何* Pod成功终止时，不会创建新的Pod。
+   - 一旦至少一个Pod成功终止并且所有Pod都终止，则作业成功完成。
+   - 一旦Pod成功退出，其他Pod仍不应为此任务做任何工作或编写任何输出。他们都应该退出。
 
 
 
 
 
+```shell
+cd ~ ; mkdir 2-job-multi ; cd 2-job-multi
+vi myjob-multi.yaml
+```
 
 
+
+> myjob-multi.yaml 详细
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-multi
+spec:
+  template:
+    spec:
+      containers:
+      - name: myjob
+        image: alpine
+        command: ["/bin/sh","-c","echo i love you ; sleep 120"]
+      # template下默认restartPolicy为Always 对Job不适用
+      # 必须显式指定为Never 或 OnFailure
+      restartPolicy: Never
+```
+
+
+
+```shell
+kubectl apply -f myjob-multi.yaml
+
+kubectl describe -f myjob-multi.yaml
+
+pods=$(kubectl get pods --selector=job-name=job-multi --output=jsonpath='{.items[*].metadata.name}')
+echo $pods
+
+# 查看其中一个Pod的标准输出
+kubectl logs $pods
+
+kubectl delete myjob-multi.yaml
+```
+
+
+
+## 2.4 CronJob
+
+指定运行时间点及是否重复运行
+
+> kubectl explain cronjob.spec 查看帮助
+
+* jobTemplate
+  * 控制器模板，必须
+* schedule
+  * 运行时间点，必须
+* concurrencyPolicy
+  * 并* 发执行策略，
+  * 值为 Allow、Forbid、Replace 定义前一次作业未执行完又遇到后一次作业的情形
+* failedJobHistoryLimit
+  * 为失败任务保留的历史记录数，默认1
+* successfulJobsHistoryLimit
+  *  为成功* 任务保留的历史记录数，默认3
+* startingDeadlineSeconds
+  *  启动作* 业错误的超时时长
+* suspend 
+  * 是否挂起后续的任务* 执行，默认false，对运行中作业没有影响
+
+
+
+
+
+```shell
+cd ~ ; mkdir 2-CronJob ; cd 2-CronJob
+vi mycronjob.yaml
+```
+
+
+
+> mycronjob.yaml 详细
+
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cronjob-example
+  labels:
+    app: mycronjob
+spec:
+  schedule: "*/2 * * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app: mycronjob-jobs
+    spec:
+      parallelism: 2
+      template:
+        spec:
+          containers:
+          - name: myjob
+            image: alpine
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster; sleep 10
+          restartPolicy: OnFailure
+```
+
+
+
+```shell
+kubectl apply -f mycronjob.yaml
+
+kubectl describe -f mycronjob.yaml
+
+
+kubectl get cronjob cronjob-example
+
+# 默认显示3条历史记录
+kubectl get jobs -l app=mycronjob-jobs  
+
+
+# Replace "hello-4111706356" with the job name in your system
+pods=$(kubectl get pods --selector=job-name=hello-4111706356 --output=jsonpath={.items[].metadata.name})
+
+# 查看其中一个Pod的标准输出
+kubectl logs $pods
+
+kubectl delete mycronjob.yaml
+```
+
+
+
+
+
+### crontab定义规则
+
+"*/2 * * * *"
+
+
+
+![alt](imgs/crontab.png)
+
+
+
+[crontab的语法规则格式（每分钟、每小时、每天、每周、每月、每年定时执行 规则](https://blog.csdn.net/xinyflove/article/details/83178876)
+
+crontab的语法规则格式：
+
+| 代表意义 | 分钟 | 小时 | 日期 | 月份 | 周   | 命令           |
+| -------- | ---- | ---- | ---- | ---- | ---- | -------------- |
+| 数字范围 | 0~59 | 0~23 | 1~31 | 1~12 | 0~7  | 需要执行的命令 |
+
+周的数字为 0 或 7 时，都代表“星期天”的意思。
+
+另外，还有一些辅助的字符，大概有下面这些：
+
+
+
+| **特殊字符** | **代表意义**                                                 |
+| ------------ | ------------------------------------------------------------ |
+| *(都是)      | 举例来说，`0 12 * * * command` 日、月、周都是*，就代表着不论何月、何日的礼拜几的12：00都执行后续命令的意思。 |
+| ,(与)        | 如果要执行的工作是3：00与6：00时，就会是：`0 3,6 * * * command`时间还是有五列，不过第二列是 3,6 ，代表3与6都适用 |
+| -(至)        | 代表一段时间范围内，举例来说，8点到12点之间的每小时的20分都进行一项工作：`20 8-12 * * * command`仔细看到第二列变成8-12.代表 8,9,10,11,12 都适用的意思 |
+| /n(每)       | 那个n代表数字，即是每隔n单位间隔的意思，例如每五分钟进行一次，则：`*/5 * * * * command`用*与/5来搭配，也可以写成0-59/5，意思相同 |
+
+1.每分钟定时执行一次规则：
+每1分钟执行： */1 * * * *或者* * * * *
+每5分钟执行： */5 * * * *
+
+2.每小时定时执行一次规则：
+每小时执行： 0 * * * *或者0 */1 * * *
+每天上午7点执行：0 7 * * *
+每天上午7点10分执行：10 7 * * *
+
+3.每天定时执行一次规则：
+每天执行 0 0 * * *
+
+4.每周定时执行一次规则：
+每周执行 0 0 * * 0
+
+5.每月定时执行一次规则：
+每月执行 0 0 1 * *
+
+6.每年定时执行一次规则：
+每年执行 0 0 1 1 *
 
 
 

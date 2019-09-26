@@ -1288,10 +1288,30 @@ kubectl get -f mydeploy.yaml -o wide
 
 # 查看详细信息
 kubectl describe -f mydeploy.yaml
+kubectl get pods  -o yaml
+
+
+# 输出版本
+kubectl get pods  -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image,PHASE:.status.phase,IP:.status.podIP,RESTARTS:.status.containerStatuses[0].restartCount
+
 
 # 删除
 kubectl delete -f mydeploy.yaml
 ```
+
+
+
+```
+NAME                            IMAGE                        PHASE     IP             RESTARTs
+myapp-deploy-757bc8fbf6-452rw   fanhualei/tomcat-alpine:v1   Running   10.100.1.227   0
+myapp-deploy-757bc8fbf6-c2h2l   fanhualei/tomcat-alpine:v1   Running   10.100.1.240   0
+myapp-deploy-757bc8fbf6-dw7q2   fanhualei/tomcat-alpine:v1   Running   10.100.1.241   0
+
+```
+
+
+
+
 
 
 
@@ -1322,13 +1342,12 @@ kubectl set image deployments.apps myapp-deploy myapp=fanhualei/tomcat-alpine:v2
 
 # 查看滚动更新过程中状态信息
 kubectl rollout status deployment myapp-deploy
-kubectl get deployments.apps myapp-deploy --watch
+kubectl get deploy myapp-deploy --watch
 
 # 旧的replicasets会保留 但此前管理的Pod对象会删除
 kubectl get replicasets.apps -l app=myapp
-kubectl get deployments.apps -l app=myapp
 
-# 访问 curl $(kubectl get pods myapp-deploy-79d4d5d95f-k2b7x -o go-template={{.status.podIP}})
+# 访问 curl $(kubectl get pods myapp-deploy-6b999b85b7-2f9fd -o go-template={{.status.podIP}}):8080
 ```
 
 
@@ -1349,7 +1368,6 @@ kubectl set image deployments myapp-deploy myapp=fanhualei/tomcat-alpine:v3 && k
 
 # 查看进度:此时，可将一部分流量引入新Pod上，进行验证
 kubectl rollout status deployment myapp-deploy
-kubectl get replicasets.apps
 
 # 验证通过后 继续升级
 kubectl rollout resume deployment myapp-deploy
@@ -1385,11 +1403,15 @@ kubectl rollout undo deployment myapp-deploy --to-revision=1
 
 ```shell
 # 回滚到之前的版本
-kubectl scale --replicas=3 -f mydeploy.yaml
+kubectl scale --replicas=4 -f mydeploy.yaml
 
 kubectl edit deployment/myapp-deploy
 
 # kubectl apply  修改原先的文件后，再执行
+
+
+# 删除
+kubectl delete -f mydeploy.yaml
 ```
 
 
@@ -1410,7 +1432,7 @@ kubectl edit deployment/myapp-deploy
 
 ```shell
 cd ~ ; mkdir 2-daemonSet ; cd 2-daemonSet
-vi mydeploy.yaml
+vi myDaemonSet.yaml
 ```
 
 
@@ -1457,11 +1479,10 @@ kubectl get -f myDaemonSet.yaml -o wide
 # 查看详细信息
 kubectl describe -f myDaemonSet.yaml
 
-kubectl describe daemonsets.apps my-ds
-kubectl get pods -l app=myapp -o custom-columns=NAME:metadata.name,NODE:spec.nodeName
+kubectl get pods -l app=myapp -o custom-columns=NAME:metadata.name,NODE:spec.nodeName,IMAGE:.spec.containers[0].image,PHASE:.status.phase,IP:.status.podIP,RESTARTS:.status.containerStatuses[0].restartCount
 
-# 如何访问到daemonSet,通过node的IP地址，还是自己的IP?
-
+# 如何访问到daemonSet,通过node的IP地址，还是pod的IP? pod地址
+curl 10.100.1.233:8080
 # 删除
 kubectl delete -f myDaemonSet.yaml
 ```
@@ -1490,7 +1511,7 @@ kubectl set image daemonsets my-ds myapp=fanhualei/tomcat-alpine:v2
 
 
 ```shell
-cd ~ ; mkdir 2-job ; cd 2-job
+cd ~ ; mkdir 2-job ; cd ~/2-job
 vi myjob.yaml
 ```
 
@@ -1522,11 +1543,16 @@ kubectl apply -f myjob.yaml
 
 kubectl describe -f myjob.yaml
 
+kubectl get pods -o wide
+
+
 pods=$(kubectl get pods --selector=job-name=job-example --output=jsonpath='{.items[*].metadata.name}')
 echo $pods
 
 # 查看其中一个Pod的标准输出
 kubectl logs $pods
+
+kubectl delete -f myjob.yaml
 ```
 
 
@@ -1556,7 +1582,7 @@ spec.parallelism 并行度属性；spec.completion 总任务数
 
 
 ```shell
-cd ~ ; mkdir 2-job-multi ; cd 2-job-multi
+cd ~ ; mkdir 2-job-multi ; cd ~/2-job-multi
 vi myjob-multi.yaml
 ```
 
@@ -1570,15 +1596,15 @@ kind: Job
 metadata:
   name: job-multi
 spec:
+  completions: 5  # 总共有5个
+  parallelism: 1  # 每次开启一个
   template:
     spec:
       containers:
       - name: myjob
         image: alpine
-        command: ["/bin/sh","-c","echo i love you ; sleep 120"]
-      # template下默认restartPolicy为Always 对Job不适用
-      # 必须显式指定为Never 或 OnFailure
-      restartPolicy: Never
+        command: ["/bin/sh","-c","echo i love you ;sleep 20"]
+      restartPolicy: OnFailure
 ```
 
 
@@ -1594,7 +1620,12 @@ echo $pods
 # 查看其中一个Pod的标准输出
 kubectl logs $pods
 
+# 使用下面的命令将出现错误
 kubectl delete myjob-multi.yaml
+
+# 使用限制器来删除
+kubectl delete pods --selector=job-name=job-multi
+kubectl delete jobs --selector=job-name=job-multi
 ```
 
 
@@ -1626,7 +1657,7 @@ kubectl delete myjob-multi.yaml
 
 
 ```shell
-cd ~ ; mkdir 2-CronJob ; cd 2-CronJob
+cd ~ ; mkdir 2-CronJob ; cd ~/2-CronJob
 vi mycronjob.yaml
 ```
 
@@ -1642,7 +1673,7 @@ metadata:
   labels:
     app: mycronjob
 spec:
-  schedule: "*/2 * * * *"
+  schedule: "*/1 * * * *"
   jobTemplate:
     metadata:
       labels:
@@ -1676,12 +1707,17 @@ kubectl get jobs -l app=mycronjob-jobs
 
 
 # Replace "hello-4111706356" with the job name in your system
-pods=$(kubectl get pods --selector=job-name=hello-4111706356 --output=jsonpath={.items[].metadata.name})
+pods=$(kubectl get pods --selector=job-name=cronjob-example-1569513300 --output=jsonpath={.items[].metadata.name})
 
 # 查看其中一个Pod的标准输出
 kubectl logs $pods
 
-kubectl delete mycronjob.yaml
+
+kubectl get pods  
+kubectl get jobs  
+
+# 需要使用这个命令来删除，不然停不下来
+kubectl delete cronjob  cronjob-example
 ```
 
 

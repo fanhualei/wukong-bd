@@ -60,7 +60,7 @@ spec:
   - name: myapp
     image: alpine
     command: ["/bin/sh"]
-    args: ["-c","while true; do sleep 30; done"]
+    args: ["-c","while true; do sleep 3; done"]
 ```
 
 
@@ -79,6 +79,10 @@ kubectl describe -f mypod.yaml
 kubectl exec -it test-pd /bin/sh
 > exit
 
+# 监控30秒看看
+kubectl get -f mypod.yaml -o wide -w
+
+
 # 删除
 kubectl delete -f mypod.yaml
 ```
@@ -92,8 +96,8 @@ kubectl delete -f mypod.yaml
 
 
 ```shell
-cd ~ ; mkdir 1-env ; cd 1-env
-vi mypod.yaml
+cd ~ ; mkdir 1-env ; cd 1-env ; vi mypod.yaml
+
 ```
 
 
@@ -110,7 +114,9 @@ metadata:
 spec:
   containers:
   - name: filebeat
-    image: ikubernetes/filebeat:5.6.5-alpine
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","while true; do sleep 3; done"]
     env:
     - name: REDIS_HOST
       value: db.ilinux.io:6379
@@ -131,9 +137,9 @@ kubectl get -f mypod.yaml -o wide
 # 查看详细信息
 kubectl describe -f mypod.yaml
 
-# 查看生成的目录
+# 登录到容器，看看环境变量是否存在
 kubectl exec -it test-pd /bin/sh
-> echo REDIS_HOST
+> echo $REDIS_HOST
 > exit
 
 # 删除
@@ -168,6 +174,8 @@ spec:
   containers:
   - name: my-test
     image: fanhualei/tomcat-alpine:v1
+    command: ["tomcat"]
+    args: ["run"]
   hostNetwork: true
 ```
 
@@ -201,7 +209,13 @@ kubectl delete -f mypod.yaml
 
 ## 1.4 权限和访问控制
 
+Security Context的目的是限制不可信容器的行为，保护系统和其他容器不受其影响。
 
+Kubernetes提供了三种配置Security Context的方法：
+
+- Container-level Security Context：仅应用到指定的容器
+- Pod-level Security Context：应用到Pod内所有容器以及Volume
+- Pod Security Policies（PSP）：应用到集群内部所有Pod以及Volume
 
 
 
@@ -230,11 +244,11 @@ spec:
     command: ["/bin/sh","-c","sleep 86400"]
     securityContext:
       runAsNonRoot: true
-      runAsUser: 1000
+      runAsUser: 1000  # 指定用那个用户运行程序
       allowPrivilegeEscalation: false
 ```
 
-
+![alt](imgs/k8s-pod-securet.png)
 
 ```shell
 # 生成pod
@@ -251,8 +265,6 @@ kubectl describe -f mypod.yaml
 kubectl exec -it test-pd /bin/sh
 > ps aux
 > exit
-
-
 
 # 删除
 kubectl delete -f mypod.yaml
@@ -381,8 +393,7 @@ metadata:
   name: myapp-svc
 spec:
   selector:
-    matchLabels:
-      app: test
+    app: test
     matchExpressions:
     - { key: tier, operator: In, values: [cache,foo]} #In和NotIn
     - { key: environment, opetator: Exists,values:}  #Exists和DostNotExist时values必须为空
@@ -402,13 +413,13 @@ spec:
 kubectl apply -f mysvc.yaml
 
 # 查看service
-kubectl get svc -f mysvc.yaml
+kubectl get svc 
 
 #　创建 Service myapp-svc 后，会自动创建名为同名的Endpoints对象
 kubectl get endpoints
 
 #Service的默认类型为ClusterIP，仅能接收来自集群中Pod对象的请求
-curl http://10.108.91.175:80/
+curl http://10.104.153.90:80/
 
 # 删除
 kubectl delete -f mysvc.yaml

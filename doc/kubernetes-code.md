@@ -42,7 +42,7 @@
 
 
 ```shell
-cd ~ ; mkdir 1-1 ; cd 1-1
+cd ~ ; mkdir 1-hello ; cd 1-hello
 vi mypod.yaml
 ```
 
@@ -89,18 +89,18 @@ kubectl delete -f mypod.yaml
 
 应用程序若不支持从环境变量获取配置，可通过 entrypoint 脚本完成环境变量到程序配置文件的同步
 
-向Pod对象中容器传递环境变量有两种方法：env 和 envFrom。envFrom见[8.2 ConfigMap的使用](#8.2 ConfigMap的使用)
-
 
 
 ```shell
-cd ~ ; mkdir 1-2 ; cd 1-2
+cd ~ ; mkdir 1-env ; cd 1-env
 vi mypod.yaml
 ```
 
 
 
 > mypod.yaml 详细
+
+向Pod对象中容器传递环境变量有两种方法：env 和 envFrom。envFrom见[8.2 ConfigMap的使用](#8.2 ConfigMap的使用)
 
 ```yaml
 apiVersion: v1
@@ -151,7 +151,7 @@ IP地址为节点的IP地址，并且端口也暴漏出来了。
 
 
 ```shell
-cd ~ ; mkdir 1-3 ; cd 1-3
+cd ~ ; mkdir 1-hostnetwork ; cd 1-hostnetwork
 vi mypod.yaml
 ```
 
@@ -206,7 +206,7 @@ kubectl delete -f mypod.yaml
 
 
 ```shell
-cd ~ ; mkdir 1-4 ; cd 1-4
+cd ~ ; mkdir 1-securitycontext ; cd 1-securitycontext
 vi mypod.yaml
 ```
 
@@ -267,7 +267,7 @@ kubectl delete -f mypod.yaml
 
 
 ```shell
-cd ~ ; mkdir 1-5 ; cd 1-5
+cd ~ ; mkdir 1-labels ; cd 1-labels
 vi mypod.yaml
 ```
 
@@ -289,8 +289,9 @@ metadata:
 spec:
   containers:
   - name: my-test
-    image: alpine
-    command: ["/bin/sh","-c","sleep 86400"]
+    image: fanhualei/tomcat-alpine:v1
+    command: ['tomcat']
+    args: ['run']
 ```
 
 
@@ -362,19 +363,62 @@ Service/Deployment/ReplicaSet等关联到Pod对象，通过在spec字段嵌套se
 * matchLabels 直接用键值对
 * matchExpressions 基于表达式指定标签选择器列表
 
+
+
+```shell
+cd ~/1-labels
+vi mysvc.yaml
+```
+
+
+
+
+
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysvc
+  name: myapp-svc
 spec:
   selector:
     matchLabels:
       app: test
     matchExpressions:
     - { key: tier, operator: In, values: [cache,foo]} #In和NotIn
-    - { key: environment, opetator: Exists,values:}  #Exists和DostNotExist时values必须为空  
+    - { key: environment, opetator: Exists,values:}  #Exists和DostNotExist时values必须为空
+  ports:
+  - protocol: TCP
+    port: 80  # Service暴露的端口
+    targetPort: 8080  # 后端Pod对象的端口 也可为端口名
+  
 ```
+
+
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mysvc.yaml
+
+# 查看service
+kubectl get svc -f mysvc.yaml
+
+#　创建 Service myapp-svc 后，会自动创建名为同名的Endpoints对象
+kubectl get endpoints
+
+#Service的默认类型为ClusterIP，仅能接收来自集群中Pod对象的请求
+curl http://10.108.91.175:80/
+
+# 删除
+kubectl delete -f mysvc.yaml
+```
+
+
+
+
+
+
 
 
 
@@ -400,7 +444,7 @@ kubectl get nodes -L disktype
 
 
 ```shell
-cd ~ ; mkdir 1-7 ; cd 1-7
+cd ~ ; mkdir 1-nodeSelector ; cd 1-nodeSelector
 vi mypod.yaml
 ```
 
@@ -463,7 +507,7 @@ kubectl delete -f mypod.yaml
 
 
 ```shell
-cd ~ ; mkdir 1-8-1 ; cd 1-8-1
+cd ~ ; mkdir 1-8-initContainers ; cd 1-8-initContainers
 vi mypod.yaml
 ```
 
@@ -533,7 +577,7 @@ kubectl delete -f mypod.yaml
 
 
 ```shell
-cd ~ ; mkdir 1-8-2 ; cd 1-8-2
+cd ~ ; mkdir 1-8-hook ; cd 1-8-hook
 vi mypod.yaml
 ```
 
@@ -634,7 +678,374 @@ kubectl delete -f mypod.yaml
 ### 1.8.5 设置容器终止宽限期
 
 系统强制删除操作宽限期倒计时(30s)启动，发送TERM信号到Pod中每个容器的主进程，倒计时结束，发送KILL信号
+
+
+
+测试node挂 机，发布需要等几分才会 在其它 的node机器 启动，这个明显不合理，对于大多数业务
+
+`/etc/systemd/system/kube-controller-manager.service`
+
 --grace-period=<seconds> 自定义宽限期时长，默认30秒
+
+
+
+
+
+## 1.9 存活性探测
+
+三种推测方法：ExecAction、TCPSocketAction、HTTPGetAction
+
+
+
+### 1.9.1 exec 探针
+
+可以探测某个文件是否存在
+
+
+
+```shell
+cd ~ ; mkdir 1-liveness-exec ; cd 1-liveness-exec
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+shell命令
+test -e /tmp/healthy   # 若在在则返回0 不存在返回1
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","touch /tmp/healthy; sleep 20; rm -rf /tmp/healthy; sleep 100"]
+    livenessProbe:
+      exec:
+        command: ["test","-e","/tmp/healthy"]
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+
+
+### 1.9.2 **HTTP** 探针
+
+
+
+```shell
+cd ~ ; mkdir 1-liveness-http ; cd 1-liveness-http
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+spec.containers.livenessProbe.httpGet 向目标空器发起http请求，根据响应码判断
+host <string> 默认为Pod IP，也可在httpHeaders中使用Host:定义
+port <string> 必填
+httpHeaders <[]Object> 请求头
+path <string> 路径，url
+scheme 默认为HTTP，也可是HTTPS
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: fanhualei/tomcat-alpine:v1
+    command: ['tomcat']
+    args: ['run']
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh","-c","echo Healthy > /opt/webapp/healthz.html"]
+    
+    livenessProbe:
+      httpGet:
+        path: /healthz.html
+        port: http
+        scheme: HTTP
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+#一个窗口监控
+kubectl get -f mypod.yaml -o wide -w
+# 删除测试页面
+kubectl exec liveness-http -- rm /opt/webapp/healthz.html
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+
+
+### 1.9.3 TCP 探针
+
+相比http更高效、更省资源，但精度略低
+
+```shell
+cd ~ ; mkdir 1-liveness-tcp ; cd 1-liveness-tcp
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+`spec.containers.livenessProbe.tcpSocket` 检查容器指定端口是否开启
+
+* host 默认为Pod IP
+* port 必选
+
+
+
+`spec.containers.livenessProbe`下属性字段（在exec http通用）指定
+
+* initialDelaySeconds ，探测延迟，默认为0s 容器启动后立即开始探测
+* timeoutSeconds ，超时，默认值1s，最小值也为1s
+* periodSeconds，频率，默认10s
+* successThreshold，处于失败状态时，连接多少次成功才被认为是成功，默认1
+* failureThreshold，处于成功状态时，连接多少次失败被认为是失败，默认3
+
+
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: fanhualei/tomcat-alpine:v1
+    command: ['tomcat']
+    args: ['run']
+    
+    livenessProbe:
+      tcpSocket:  
+        port: 80
+      initianDelaySeconds: 5 
+      timeoutSeconds: 2 
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+#一个窗口监控
+kubectl get -f mypod.yaml -o wide -w
+# 登录 手工关掉tomcat
+kubectl exec -it test-pd /bin/sh
+> 
+
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+## 1.10 readinessProbe
+
+三种推测方法：ExecAction、TCPSocketAction、HTTPGetAction
+
+
+
+### 1.10.1 exec 探针
+
+可以探测某个文件是否存在
+
+
+
+```shell
+cd ~ ; mkdir 1-readiness-exec ; cd 1-readiness-exec
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+shell命令
+test -e /tmp/healthy   # 若在在则返回0 不存在返回1
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","touch /tmp/healthy; sleep 20; rm -rf /tmp/healthy; sleep 100"]
+    readinessProbe:
+      exec:
+        command: ["test","-e","/tmp/healthy"]
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+
+
+### 1.10.2 **HTTP** 探针
+
+**可以参考liveness的代码**
+
+
+
+### 1.10.3 TCP 探针
+
+**可以参考liveness的代码**
+
+
+
+## 1.11 限制使用资源
+
+
+
+一个cpu逻辑核心为 1 core = 1000 millicores 即1000m
+内存单位为 G Gi M Mi K Ki 默认为字节
+
+
+
+```shell
+cd ~ ; mkdir 1-requests ; cd 1-requests
+vi mypod.yaml
+```
+
+
+
+> mypod.yaml 详细
+
+* requests 
+  * 确保可用的最小资源，不一定会用得到，可能会用不到
+* limits 
+  * 最大值，硬限制
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-pod
+spec:
+  containers:
+  - name: stress
+    image: ikubernetes/stress-ng
+    # -m 1 内存性能压力测试 1个进程  -c 1 cpu压力测试 1个进程
+    command: ["/usr/bin/stress-ng","-m 1","-c 1","--metrics-brief"]
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: 200m
+      limits:
+        memory: 256Mi
+        cpu: 500m
+```
+
+
+
+```shell
+# 生成pod
+kubectl apply -f mypod.yaml
+
+# 看看启动了没有
+kubectl get -f mypod.yaml -o wide
+
+# 查看详细信息
+kubectl describe -f mypod.yaml
+
+
+kubectl exec stress-pod -- top
+
+kubectl get pods -w     # -w watch 查看数据变化
+
+# 删除
+kubectl delete -f mypod.yaml
+```
+
+
+
+
+
+> 辅助知识
+
+CentOS 7的EPEL源包含了2个压力测试工具，一个是标准的stress, 另外一个是更强大的stress-ng，可以帮助模拟产生各种cpu压力。
+
+stress参数和用法都很简单：
+
+　　-c 2 : 生成2个worker循环调用sqrt()产生cpu压力
+
+　　-i 1 : 生成1个worker循环调用sync()产生io压力
+
+　　-m 1 : 生成1个worker循环调用malloc()/free()产生内存压力
+
+　　比如, 从下面可以看出经过30秒的压力后，系统负载从0.00提升至0.57。
 
 
 

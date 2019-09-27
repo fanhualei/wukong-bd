@@ -1784,6 +1784,295 @@ crontab的语法规则格式：
 
 # 3. Service
 
+Service和Pod对象的IP仅在K8s集群内可达，Service的IP也称为Cluster IP，是虚拟IP，能被同集群中Pod访问
+Service关联Pod资源借助于标签选择器完成
+
+![alt](imgs/20190301141938.jpg)
+
+Service与Pod之间关联关系是松耦合方式，Service可先于Pod创建而不会发生错误
+
+![alt](imgs/20190301143451.jpg)
+
+Service并不直接链接至Pod，中间还有一层 Endpoints 资源对象(IP地址和端口组成的列表)
+默认，创建Service时，其关联的Endpoints对象会自动创建
+一个Service对象就是工作节点上的一些iptables或ipvs规则，由kube-proxy实时维护
+
+
+
+## 3.1 服务建立
+
+
+
+
+
+```shell
+cd ~ ; mkdir 2-hello-svc ; cd ~/2-hello-svc 
+vi mysvc.yaml
+```
+
+
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-svc
+spec:
+  selector:
+    app: myapp
+  ports:
+  - protocol: TCP
+    port: 80  # Service暴露的端口
+    targetPort: 8080  # 后端Pod对象的端口 也可为端口名
+    
+---
+# 模拟一个pod ,也可以使用controll建立
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+  labels:
+    app: myapp
+spec:
+  containers:
+  - name: my-test
+    image: fanhualei/tomcat-alpine:v1
+    command: ["tomcat"]
+    args: ["run"]
+```
+
+
+
+```shell
+kubectl apply -f mysvc.yaml
+
+#　创建 Service myapp-svc 后，会自动创建名为同名的Endpoints对象
+kubectl get endpoints
+kubectl get svc
+
+# 删除
+kubectl delete -f mysvc.yaml
+```
+
+
+
+**向 Service 对象请求服务**
+
+Service的默认类型为ClusterIP，仅能接收来自集群中Pod对象的请求
+
+```shell
+curl http://10.108.91.175:80/
+```
+
+
+
+**Service 会话粘性**
+
+Service支持Session affinity机制，能将同一个客户端的请求始终转发至同一个后端Pod对象
+会话粘性效果默认在10800s后会重新调度 （3小时）
+仅能基于客户端IP进行识别，调度粒度较粗，不推荐使用
+
+spec.sessionAffinity，定义粘性会话的类型，可为 None 和 ClientIP
+spec.sessionAffinityConfig，配置会话保持时长，默认10800s 范围 1-86400
+
+例如下面代码
+
+```yaml
+sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+```
+
+
+
+## 3.2 服务发现
+
+有3种方式
+
+* 环境变量（不推荐）
+  * 创建Pod时，kubelet会将所属名称空间内所有活动Service对象以环境变量形式注入
+* ClusterDNS（默认方式）
+  * Pod会自动配置名称解析服务器为ClusterDNS (cat /etc/resolv.conf)
+  * 每个Service会由DNS自动生成相关记录
+* DNS方式
+  * 每个Service有两个DNS记录：
+    * {SVCNAME}.{NS}.{CLUSTER_DOMAIN}
+    * {SVCNAME}.{NS}.svc.{CLUSTER_DOMAIN}   eg: myapp-svc.default.svc.cluster.local
+  * 基于DNS的服务发现不受名称空间和创建时间的限制
+
+
+
+## 3.3 服务暴露
+
+
+
+Service Type共四种类型：ClusterIP、NodePort、LoadBalancer、ExternalName
+
+* ClusterIP
+  * 默认，仅集群内可达
+* NodePort
+  * 构建在ClusterIP之上，增加<NodeIP>:<NodePort>进行请求，默认端口范围 30000~32767
+* LoadBalancer
+  * 构建在NodePort之上，使用运营商负载均衡器
+* ExternalName
+  * 将Service映射至由externalName指定的主机名来暴露服务
+  * 此主机名需要被DNS解析到CNAME类型的记录
+  * ExternalName用于将**外部服务映射到集群内**，让集群内Pod资源能够访问
+    * 故其没有ClusterIP、NodePort、标签选择器和Endpoints
+
+
+
+### 3.3.1 NodePort方式
+
+
+
+
+
+```shell
+cd ~/2-hello-svc 
+vi svc-nodePort.yaml
+```
+
+
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-svc-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: myapp
+  ports:
+  - protocol: TCP
+    port: 8081
+    targetPort: 8080
+    # 通常，nodePort不需要手工指定，会由系统随机分配
+    #nodePort: 32223 
+    
+---
+# 模拟一个pod ,也可以使用controll建立
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+  labels:
+    app: myapp
+spec:
+  containers:
+  - name: my-test
+    image: fanhualei/tomcat-alpine:v1
+    command: ["tomcat"]
+    args: ["run"]    
+```
+
+
+
+```shell
+kubectl apply -f svc-nodePort.yaml
+```
+
+
+
+
+
+
+
+
+
+### 3.3.2 ExternalName方式
+
+将外部服务发布到集群中
+该类型的Service实现于DNS级别，无须配置ClusterIP
+
+
+
+
+
+```shell
+cd ~/2-hello-svc 
+vi svc-external.yaml
+```
+
+
+
+
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-wx-svc
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: wx.runzhichina.com  # 该域名在集群外必须可访问 貌似不支持修改hosts文件
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 0
+  selector: {}
+```
+
+集群内Pod可通过` external-wx-svc` 或 `external-wx-svc.default.svc.cluster.local` 访问相应服务
+
+
+
+```shell
+kubectl apply -f external-wx-svc.yaml
+```
+
+
+
+
+
+### 3.3.3 Headless方式
+
+客户端直接访问Pod的IP地址，而不是Service的IP地址，Headless Service对象没有ClusterIP
+
+前端应用拥有自有的服务发现机制时，适用于Headless Service
+
+情形：
+1、有标签选择器，会创建Endpoints记录，DNS将服务的A记录直接解析为Pod的IP地址
+2、无标签选择器，不会创建Endpoints。对ExternalName类型的服务，创建CNAME记录；对其他类型，为所有与当前Service共享名称的所有Endpoint对象创建一条记录  (即DNS返回多条IP记录，顺序随机，也可起到负载均衡的功效)
+
+
+
+```shell
+cd ~/2-hello-svc 
+vi svc-headless.yaml
+```
+
+
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-headless-svc
+spec:
+  clusterIP: None   # 仅需设置为None即可
+  selector:
+    app: myapp
+  ports:
+  - port: 80
+    targetPort: 80
+    name: httpport
+```
+
+
+
+```yaml
+kubectl apply -f svc-headless.yaml
+```
+
+
+
+
+
 
 
 
@@ -1982,7 +2271,7 @@ gitRepo卷类型已弃用。要为容器提供git存储库，[请将EmptyDir](ht
 
 
 
-### 4.2.1 nfs 网络
+### 4.2.1 NFS 网络
 
 - 可以在加载 NFS 数据卷前就在其中准备好数据；
 - 可以在不同容器组之间共享数据；
@@ -3322,6 +3611,432 @@ kubectl set image sts myset *=fanhualei/tomcat-alpine:v3
 # 改变节点信息，分别查看每个节点的信息
 kubectl get pod myset-2 -o yaml | grep image
 ```
+
+
+
+
+
+
+
+
+
+# 10 Ingress
+
+> 参考文档
+
+* [Kubernetes学习之路（十五）之Ingress和Ingress Controller](https://www.cnblogs.com/linuxk/p/9706720.html)
+
+* [Kubernetes之服务发现ingress & ingress controller](https://blog.csdn.net/cloudUncle/article/details/82940598)
+
+
+
+## 10.1 基本概念
+
+
+
+> 需求描述
+
+```
+暴漏服务的传统做法：
+1、在一个Pod中安装Nginx，并且把这个Pod通过所在节点物理机的端口暴漏出去。
+  1.1、通过物理机暴漏的方法很多，例如：共享网络节点的pod 或者一个NodePort的Service
+  
+2、新建立的这个Pod就可以外网访问，也可以访问内网的其他Service关联的Pod
+
+3、在这个安装Nginx的Pod节点上配置Nginx转发的路径，来访问后面的Pod.
+
+问题：
+如果后端，新追加一个Service，那么还要手工的去修改Nginx配置，这样稍微麻烦一点。有没有更抽象的方法呢？
+```
+
+所以引入了Ingress与Ingress Controller的概念
+
+
+
+![alt](imgs/k8s-ingress-sit.png)
+
+
+
+| 名称               | 说明                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| Ingress Controller | 可以理解是一个安装了Nginx的Pod,这个Pod可以读取Ingress        |
+| Ingress            | 可以理解是一个配置文件。 今后只用变更这个配置文件就行，其他的解析都交给Ingress Controller |
+
+具体步骤：
+
+1. 请求调度到一个nodePort类型的Service(ingress-nginx)上
+2. 然后nodePort类型的Service(ingress-nginx)又把它调度到内部的叫做ingressController的Pod上
+3. ingressCtroller根据ingress中的定义，通过Pod的Service来找到对应的Pod
+
+
+
+## 10.2 具体使用
+
+
+
+### 第一步、 安装Ingress-Nginx
+
+* [ingress-nginx在github上的地址](https://github.com/kubernetes/ingress-nginx)
+* [安装文档](https://kubernetes.github.io/ingress-nginx/deploy/)
+
+
+
+#### ① 安装
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+```
+
+
+
+#### ② 验证
+
+判断ingress controller pod 是否启动，可以使用下面的命令
+
+```shell
+kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx --watch
+```
+
+
+
+> 查看安装的版本
+
+```shell
+OD_NAMESPACE=ingress-nginx
+POD_NAME=$(kubectl get pods -n $POD_NAMESPACE -l app.kubernetes.io/name=ingress-nginx -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -it $POD_NAME -n $POD_NAMESPACE -- /nginx-ingress-controller --version
+```
+
+
+
+### 第二步、部署Ingress-Nginx Service
+
+通过ingress-controller对外提供服务，现在还需要手动给ingress-controller建立一个service，接收集群外部流量。方法如下：
+
+
+
+#### ① 安装
+
+```
+kubectl apply -f https://github.com/kubernetes/ingress-nginx/blob/master/deploy/static/provider/baremetal/service-nodeport.yaml
+```
+
+
+
+> service-nodeport.yaml 
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx
+  namespace: ingress-nginx
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+```
+
+
+
+#### ② 验证
+
+```shell
+kubectl get svc -n ingress-nginx
+```
+
+通过节点的IP ，访问服务，应该出现404错误。
+
+例如：http://192.168.1.186:30080
+
+
+
+
+
+### 第三步、配置具体的应用
+
+
+
+#### 案例1：发布Tomcat应用
+
+
+
+```shell
+#创建一个目录
+mkdir ~/10-ingress-tomcat  ; cd ~/10-ingress-tomcat
+```
+
+
+
+##### ① 准备名称空间
+
+
+
+```shell
+vi namespace.yaml
+```
+
+
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: testing
+  labels:
+    env: testing
+```
+
+
+
+```shell
+kubectl apply -f namespace.yaml
+```
+
+
+
+##### ② 部署Tomcat
+
+
+
+```shell
+vi tomcat.yaml
+```
+
+
+
+```yaml
+# 创建一个tomcat
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat-deploy
+  namespace: testing
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tomcat
+  template:
+    metadata:
+      labels:
+        app: tomcat
+    spec:
+      containers:
+      - name: tomcat
+        image: tomcat:9.0.20-jre8-alpine
+        ports:
+        - containerPort: 8080
+          name: httpport
+        - containerPort: 8009
+          name: ajpport
+          
+---
+# 创建一个service关联这个pod
+apiVersion: v1
+kind: Service
+metadata:
+  name: tomcat-svc
+  namespace: testing
+  labels:
+    app: tomcat-svc
+spec:
+  selector:
+    app: tomcat
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+```
+
+备注：[*dockerHub上的tomcat链接*](https://hub.docker.com/_/tomcat?tab=tags&page=1&name=alpine)
+
+
+
+```shell
+kubectl apply -f tomcat.yaml
+
+#查看创建结果
+kubectl get -f tomcat.yaml  -o wide
+```
+
+
+
+##### ③ 创建Ingress资源
+
+
+
+```shell
+vi ingress.yaml
+```
+
+
+
+```yaml
+# 创建一个Ingress
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: tomcat
+  namespace: testing
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+  - host: tomcat.fanhualei.com
+    http:
+      paths:
+      - path:      #配置访问路径，如果通过url进行转发，需要修改；空默认为访问的路径为"/"
+        backend:   #配置后端服务  
+          serviceName: tomcat-svc
+          servicePort: 80
+```
+
+备注：[*dockerHub上的tomcat链接*](https://hub.docker.com/_/tomcat?tab=tags&page=1&name=alpine)
+
+
+
+```shell
+kubectl apply -f ingress.yaml
+
+#查看创建结果
+
+kubectl get -f ingress.yaml
+
+kubectl describe ingresses -n testing
+
+# 也可以登录到Ingress-Nginx容器中看看nginx的配置
+# kubectl exec -n ingress-nginx -it nginx-ingress-controller-6bd7c597cb-6pchv -- /bin/bash
+# cat /etc/nginx/nginx.conf
+
+curl -H "Host: tomcat.fanhualei.com" http://192.168.1.186/
+```
+
+可以修改Win10的hosts文件，然后在浏览器中访问这个地址。
+
+
+
+##### ④ 配置TLS Ingress资源
+
+大多数情况，不需要这一步。
+
+通常，HTTPS应该由外部负载均衡器予以实现，并在SSL会话卸载后，将访问请求转发到Ingress控制器。
+
+###### Ⅰ. 生成自签名证书
+
+```shell
+# TLS Secret中包含的证书必须以tls.crt作为其键名；私钥文件必须以tls.key为键名
+openssl genrsa -out tls.key 2048
+
+openssl req -new -x509 -key tls.key -out tls.crt -subj /C=CN/ST=Beijing/L=Beijing/O=DevOps/CN=tomcat.ilinux.io -days 3650
+```
+
+
+
+###### Ⅱ.  创建Secret资源
+
+```shell
+kubectl create secret tls tomcat-ingress-secret --cert=tls.crt --key=tls.key -n testing
+
+kubectl get secrets -n testing tomcat-ingress-secret -o yaml
+```
+
+
+
+###### Ⅲ.  创建Ingress资源
+
+
+
+```shell
+vi ingress-tls.yaml
+```
+
+
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: tomcat-ingress-tls
+  namespace: testing
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+  - hosts:
+    - tomcat.ilinux.io
+    secretName: tomcat-ingress-secret
+  rules:
+  - host: tomcat.fanhualei.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tomcat-svc
+          servicePort: 80
+```
+
+
+
+```shell
+kubectl apply -f ingress-tls.yaml
+
+kubectl get -f ingress-tls.yaml
+
+curl -k -H "Host: tomcat.fanhualei.com" https://192.168.1.186:443/
+```
+
+可以在浏览器来查看 https://192.168.1.186:443/
+
+*注意，若多个Ingress重叠，则只有一个生效；ingress不区分namespace*
+
+实际使用中，在集群之外应该存在一个用于调度用户请求至各节点Ingress控制器相关的NodePort的负载均衡器
+可基于Nginx、Happroxy、LVS等手动创建，并通过Keepalived实现高可用配置
+
+
+
+##### ⑤ 清空实验数据
+
+```shell
+# 删除 pod deployment server
+kubectl delete -f tomcat.yaml
+
+# 删除 ingress
+kubectl delete -f ingress.yaml
+
+# 删除 ingress-tls
+kubectl delete -f ingress-tls.yaml
+# 删除 secrets
+kubectl delete secrets/tomcat-ingress-secret   -n testing 
+
+# 删除命令空间
+kubectl delete -f namespace.yaml
+```
+
+
+
+
+
+
+
+
+
+
 
 
 

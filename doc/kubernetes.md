@@ -1,5 +1,35 @@
 # Kubernetes
 
+
+
+> 目录
+
+* [虚拟机安装](virtualbox.md)
+
+* [kubernetes安装](kubernetes-install.md)
+
+* [Kubernetes 入门](kubernetes-quict-start.md)
+
+* Kubernetes 进阶
+
+  * [使用docker私有仓库](https://segmentfault.com/a/1190000015108428)
+  * [Pod详解](kubernetes-detail-pod.md)
+  * [控制器详解](kubernetes-detail-controller.md)
+  * [service详解](kubernetes-detail-service.md)
+  * [volume存储详解](kubernetes-detail-volume.md)
+  
+* [kubernetes互动教程](kubernetes-code.md)
+
+* [docker基本技巧](docker-menu.md)
+
+* [NFS网络存储](nfs.md)
+
+  
+
+
+
+
+
 以前使这样的，有个项目要上线了，需要几台机器。网管就给他几台物理机或者虚拟机，以及外网的IP。
 
 然后程序员，就去在不同的机器上部署程序。程序员要干这些事情：
@@ -59,34 +89,6 @@
 4、规模小，机房的机器小于10台，或者应用的系统比较小，也没有必要用这套东西。 但是建议用docket，这个比原先的好多了。
 
 
-
-
-
-
-
-> 目录
-
-* [虚拟机安装](virtualbox.md)
-
-* [kubernetes安装](kubernetes-install.md)
-
-* [Kubernetes 入门](kubernetes-quict-start.md)
-
-* Kubernetes 进阶
-
-  * [使用docker私有仓库](https://segmentfault.com/a/1190000015108428)
-  * [Pod详解](kubernetes-detail-pod.md)
-  * [控制器详解](kubernetes-detail-controller.md)
-  * [service详解](kubernetes-detail-service.md)
-  * [volume存储详解](kubernetes-detail-volume.md)
-  
-* [kubernetes对象演示](kubernetes-code.md)
-
-* [docker基本技巧](docker-menu.md)
-
-* [NFS网络存储](nfs.md)
-
-  
 
 
 

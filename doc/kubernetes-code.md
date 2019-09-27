@@ -1830,7 +1830,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: test-pd
+  name: test-tomcat
   labels:
     app: myapp
 spec:
@@ -1839,6 +1839,19 @@ spec:
     image: fanhualei/tomcat-alpine:v1
     command: ["tomcat"]
     args: ["run"]
+
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-alpine
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","while true; do sleep 3; done"]   
 ```
 
 
@@ -1847,8 +1860,14 @@ spec:
 kubectl apply -f mysvc.yaml
 
 #　创建 Service myapp-svc 后，会自动创建名为同名的Endpoints对象
-kubectl get endpoints
-kubectl get svc
+kubectl get endpoints -o wide
+kubectl get svc -o wide
+
+# 服务发现
+kubectl exec -it test-alpine /bin/sh
+> nslookup  myapp-svc.default.svc.cluster.local
+> nslookup my-service
+
 
 # 删除
 kubectl delete -f mysvc.yaml
@@ -1861,7 +1880,7 @@ kubectl delete -f mysvc.yaml
 Service的默认类型为ClusterIP，仅能接收来自集群中Pod对象的请求
 
 ```shell
-curl http://10.108.91.175:80/
+curl http://10.96.11.8:80/
 ```
 
 
@@ -1972,11 +1991,14 @@ spec:
 
 ```shell
 kubectl apply -f svc-nodePort.yaml
+
+kubectl get svc -o wide
+
+#得到绑定到节点的port，然后利用节点就可以访问了
+curl http://192.168.1.185:30739/
+
+kubectl delete -f svc-nodePort.yaml
 ```
-
-
-
-
 
 
 
@@ -1986,8 +2008,6 @@ kubectl apply -f svc-nodePort.yaml
 
 将外部服务发布到集群中
 该类型的Service实现于DNS级别，无须配置ClusterIP
-
-
 
 
 
@@ -2015,6 +2035,19 @@ spec:
     targetPort: 80
     nodePort: 0
   selector: {}
+  
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-alpine
+spec:
+  containers:
+  - name: myapp
+    image: alpine
+    command: ["/bin/sh"]
+    args: ["-c","while true; do sleep 3; done"]     
+  
 ```
 
 集群内Pod可通过` external-wx-svc` 或 `external-wx-svc.default.svc.cluster.local` 访问相应服务
@@ -2022,7 +2055,18 @@ spec:
 
 
 ```shell
-kubectl apply -f external-wx-svc.yaml
+kubectl apply -f svc-external.yaml
+
+kubectl exec -it test-alpine /bin/sh
+> nslookup  external-wx-svc.default.svc.cluster.local
+> nslookup external-wx-svc
+# 通过服务名可以访问到外部的域名，这里有非常严重的问题，因为会将域名转化成ip，如果服务器又nginx转发，那么就访问不到了
+> wget external-wx-svc  # 这个命令只会被指向nginx服务器上
+> apk add curl
+> curl -H "Host:wx.runzhichina.com" external-wx-svc
+
+
+kubectl delete -f svc-external.yaml
 ```
 
 
@@ -2059,23 +2103,141 @@ spec:
     app: myapp
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 8080
     name: httpport
+    
+---
+
+# 模拟一个pod 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+  labels:
+    app: myapp
+spec:
+  containers:
+  - name: my-test
+    image: fanhualei/tomcat-alpine:v1
+    command: ["tomcat"]
+    args: ["run"]   
 ```
 
 
 
 ```yaml
 kubectl apply -f svc-headless.yaml
+
+kubectl get -f svc-headless.yaml -o wide
+
+kubectl exec -it test-pd /bin/sh
+> apk add curl
+> nslookup myapp-headless-svc
+
+kubectl delete -f svc-headless.yaml
 ```
 
 
 
+### 3.3.4 External IP方式
+
+注：自己的理解 `将一个外部地址，不指向外部了，指向内部的的pod`
+
+例如得到一个baidu的IP地址，然后再集群Pod中，ping这个baidu的IP地址，会被指向自己的服务。
 
 
 
+```shell
+cd ~/2-hello-svc 
+vi svc-externalIp.yaml
+```
 
 
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-externalip-svc
+spec:
+  selector:
+    app: myapp
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: httpport
+  externalIPs:
+  - 61.135.169.121  # 百度的地址
+---
+
+# 模拟一个pod 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pd
+  labels:
+    app: myapp
+spec:
+  containers:
+  - name: my-test
+    image: fanhualei/tomcat-alpine:v1
+    command: ["tomcat"]
+    args: ["run"]   
+```
+
+
+
+```yaml
+kubectl apply -f svc-externalIp.yaml
+
+kubectl get -f svc-externalIp.yaml -o wide
+
+kubectl exec -it test-pd /bin/sh
+> apk add curl
+> nslookup myapp-externalip-svc
+> curl  myapp-externalip-svc
+> curl 61.135.169.121             # 原先指向baidu的IP被改变了。
+
+kubectl delete -f svc-externalIp.yaml
+```
+
+
+
+### 3.3.5 ClusterIP方式
+
+默认方式，就是只能集群内部的Pod可以访问Service服务。
+
+
+
+### 3.3.6 LoadBalancer 方式
+
+如果不想暴漏自己的服务器，可以用一个云服务商提供的负载均衡服务，来引入到k8s中。
+
+关于更多 LoadBalancer Service 相关的描述，请参考 [Type LoadBalancer](https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer) 和您所使用的云供应商的文档
+
+```yaml
+# 实例代码，不能执行
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: MyApp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9376
+  clusterIP: 10.0.171.239
+  loadBalancerIP: 78.11.24.19
+  type: LoadBalancer
+status:
+  loadBalancer:
+    ingress:
+      - ip: 146.148.47.155
+```
+
+[kubernetes/k8s接合阿里云LoadBalancer/负载均衡](https://blog.csdn.net/cleverfoxloving/article/details/79186574)
 
 
 
@@ -3257,6 +3419,17 @@ kubectl delete -f mypod.yaml
 
 # 9. StatefulSet
 
+又状态的服务，需要自己定义如何访问，又可能每一个都不一样。
+
+对于有如下要求的应用程序，StatefulSet 非常适用：
+
+- 稳定、唯一的网络标识（dnsname）
+- 稳定、不变的持久化路径（或存储卷）
+- 按顺序地增加副本、减少副本，并在减少副本时执行清理
+- 按顺序自动地执行滚动更新
+
+
+
 
 
 ## 9.1 模拟存储空间
@@ -3702,15 +3875,18 @@ kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx --watc
 > 查看安装的版本
 
 ```shell
-OD_NAMESPACE=ingress-nginx
+POD_NAMESPACE=ingress-nginx
 POD_NAME=$(kubectl get pods -n $POD_NAMESPACE -l app.kubernetes.io/name=ingress-nginx -o jsonpath='{.items[0].metadata.name}')
 
 kubectl exec -it $POD_NAME -n $POD_NAMESPACE -- /nginx-ingress-controller --version
+
+#也可以登录进去，看看 /ect/nginx/nginx.conf的配置
+kubectl exec -it $POD_NAME -n $POD_NAMESPACE -- /bin/bash
 ```
 
 
 
-### 第二步、部署Ingress-Nginx Service
+### 第二步、部署xIngress-Nginx Service
 
 通过ingress-controller对外提供服务，现在还需要手动给ingress-controller建立一个service，接收集群外部流量。方法如下：
 
@@ -3718,13 +3894,13 @@ kubectl exec -it $POD_NAME -n $POD_NAMESPACE -- /nginx-ingress-controller --vers
 
 #### ① 安装
 
+```shell
+kubectl apply -f  https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml
 ```
-kubectl apply -f https://github.com/kubernetes/ingress-nginx/blob/master/deploy/static/provider/baremetal/service-nodeport.yaml
-```
 
+*在github上找到这个文件，然后点击 raw就能得到这个路径了*
 
-
-> service-nodeport.yaml 
+> service-nodeport.yaml  的样子，参考一下，就知道怎么做一个NodePort Service了
 
 ```yaml
 apiVersion: v1
@@ -3742,10 +3918,12 @@ spec:
       port: 80
       targetPort: 80
       protocol: TCP
+      #nodePort: 30080  #可以固定这个端口
     - name: https
       port: 443
       targetPort: 443
       protocol: TCP
+      #nodePort: 30443  #可以固定这个端口
   selector:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
@@ -3759,9 +3937,16 @@ spec:
 kubectl get svc -n ingress-nginx
 ```
 
+显示结果大概如下：
+
+```
+NAME            TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx   NodePort   10.99.220.217   <none>        80:31557/TCP,443:30550/TCP   2m18s
+```
+
 通过节点的IP ，访问服务，应该出现404错误。
 
-例如：http://192.168.1.186:30080
+例如：http://192.168.1.186:31557
 
 
 
@@ -3805,6 +3990,8 @@ metadata:
 
 ```shell
 kubectl apply -f namespace.yaml
+
+kubectl get -f namespace.yaml
 ```
 
 
@@ -3873,6 +4060,9 @@ kubectl apply -f tomcat.yaml
 
 #查看创建结果
 kubectl get -f tomcat.yaml  -o wide
+
+#看看生成大的pod
+kubectl get pods -n testing -o wide
 ```
 
 
@@ -3921,13 +4111,25 @@ kubectl get -f ingress.yaml
 kubectl describe ingresses -n testing
 
 # 也可以登录到Ingress-Nginx容器中看看nginx的配置
-# kubectl exec -n ingress-nginx -it nginx-ingress-controller-6bd7c597cb-6pchv -- /bin/bash
+kubectl exec -it $POD_NAME -n $POD_NAMESPACE -- /bin/bash
 # cat /etc/nginx/nginx.conf
 
-curl -H "Host: tomcat.fanhualei.com" http://192.168.1.186/
+curl -H "Host:tomcat.fanhualei.com" http://192.168.1.186:31557/
 ```
 
 可以修改Win10的hosts文件，然后在浏览器中访问这个地址。
+
+![alt](imgs/k8s-ingress-show-tomcat.png)
+
+
+
+**为什么要输入31557这个端口呢?  这个端口是从哪里来的？**
+
+* 这个端口是`Ingress-Nginx-Service` 自动映射出来的端口。
+  * [见第二步、部署xIngress-Nginx Service](#第二步、部署xIngress-Nginx Service)
+* 如果在这个Service前边再做一个转发，将服务转发到这个Service，那么用户看到的就不一样了。
+
+
 
 
 
@@ -3943,7 +4145,7 @@ curl -H "Host: tomcat.fanhualei.com" http://192.168.1.186/
 # TLS Secret中包含的证书必须以tls.crt作为其键名；私钥文件必须以tls.key为键名
 openssl genrsa -out tls.key 2048
 
-openssl req -new -x509 -key tls.key -out tls.crt -subj /C=CN/ST=Beijing/L=Beijing/O=DevOps/CN=tomcat.ilinux.io -days 3650
+openssl req -new -x509 -key tls.key -out tls.crt -subj /C=CN/ST=Beijing/L=Beijing/O=DevOps/CN=tomcat.fanhualei.com -days 3650
 ```
 
 
@@ -3953,7 +4155,7 @@ openssl req -new -x509 -key tls.key -out tls.crt -subj /C=CN/ST=Beijing/L=Beijin
 ```shell
 kubectl create secret tls tomcat-ingress-secret --cert=tls.crt --key=tls.key -n testing
 
-kubectl get secrets -n testing tomcat-ingress-secret -o yaml
+kubectl get secrets/tomcat-ingress-secret -n testing  -o yaml
 ```
 
 
@@ -3979,7 +4181,7 @@ metadata:
 spec:
   tls:
   - hosts:
-    - tomcat.ilinux.io
+    - tomcat.fanhualei.com
     secretName: tomcat-ingress-secret
   rules:
   - host: tomcat.fanhualei.com
@@ -3998,10 +4200,12 @@ kubectl apply -f ingress-tls.yaml
 
 kubectl get -f ingress-tls.yaml
 
-curl -k -H "Host: tomcat.fanhualei.com" https://192.168.1.186:443/
+kubectl get ingresses -n testing
+
+curl -k -H "Host: tomcat.fanhualei.com" https://192.168.1.186:30550/
 ```
 
-可以在浏览器来查看 https://192.168.1.186:443/
+可以在浏览器来查看 https://tomcat.fanhualei.com:30550/
 
 *注意，若多个Ingress重叠，则只有一个生效；ingress不区分namespace*
 
@@ -4010,16 +4214,20 @@ curl -k -H "Host: tomcat.fanhualei.com" https://192.168.1.186:443/
 
 
 
+![alt](imgs/k8s-ingress-show-tomcat-44s.png)
+
+
+
 ##### ⑤ 清空实验数据
 
 ```shell
-# 删除 pod deployment server
+# 删除 pod deployment server 
 kubectl delete -f tomcat.yaml
 
-# 删除 ingress
+# 删除 ingress  htt 不可以访问了
 kubectl delete -f ingress.yaml
 
-# 删除 ingress-tls
+# 删除 ingress-tls 那么 https就不可以访问了
 kubectl delete -f ingress-tls.yaml
 # 删除 secrets
 kubectl delete secrets/tomcat-ingress-secret   -n testing 
@@ -4029,6 +4237,16 @@ kubectl delete -f namespace.yaml
 ```
 
 
+
+> 如果想断开与外网的链接：只用删除ingress就可以了
+
+```shell
+# 删除 ingress  htt 不可以访问了
+kubectl delete -f ingress.yaml
+
+# 删除 ingress-tls 那么 https就不可以访问了
+kubectl delete -f ingress-tls.yaml
+```
 
 
 

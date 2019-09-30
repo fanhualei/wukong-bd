@@ -18,11 +18,16 @@
   * [service详解](kubernetes-detail-service.md)
   * [volume存储详解](kubernetes-detail-volume.md)
   
-* [kubernetes互动教程](kubernetes-code.md)
+* 管理员
 
-* [docker基本技巧](docker-menu.md)
+  * [给NameSpace分配权限](kubernetes-admin-usercount.md)
+  * [资源配置](kubernetes-admin-resource.md)
+  * [NFS网络存储](nfs.md)
 
-* [NFS网络存储](nfs.md)
+* 开发人员
+
+  * [kubernetes互动教程](kubernetes-code.md)
+  * [docker基本技巧](docker-menu.md)
 
   
 

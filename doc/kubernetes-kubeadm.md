@@ -1,4 +1,4 @@
-# **kubeadm** 集群安装
+# **vkubeadm** 集群安装
 
 参考网址
 
@@ -713,6 +713,143 @@ spec:
 
 
 
+# 第七步. 安装系统监控
+
+K8s自己支持的监控是`metrics-server`，这个只支持`cpu`与`memory`，为了监控更多信息，引入了第三方监控`prometheus`，第三方监控可以将监控数据传递给k8s，也可以传递给图像界面。
+
+
+
+* 资源指标-metrics-server
+* 自定义指标-prometheus, k8s-prometheus-adapter
+
+
+
+
+
+## 7.1 安装基本监控
+
+安装metrics-server，然后使用`kubectl top node 或 pod`就可以产看状态了
+
+参考了这篇文档：https://pdf.us/2019/04/17/3267.html
+
+
+
+### ① 下载yaml
+
+到这个目录下`https://github.com/kubernetes-incubator/metrics-server/tree/master/deploy`
+
+执行下面的脚本就可以下载了
+
+```shell
+mkdir ~/metrics-server; cd ~/metrics-server;
+
+# 要下载的目录
+url='https://raw.githubusercontent.com/kubernetes-incubator/metrics-server/master/deploy/1.8%2B/'
+
+# 要下载的文件
+files='aggregated-metrics-reader.yaml auth-delegator.yaml auth-reader.yaml metrics-apiservice.yaml metrics-server-deployment.yaml metrics-server-service.yaml resource-reader.yaml'
+
+#可以先看以下
+#for file in $files ; do echo $url$file; done
+
+#下载文件
+for file in $files ; do wget $url$file; done
+```
+
+
+
+### ② 修改配置
+
+由于不能从google上下载，那么只能修改下面的文件
+
+`vi metrics-server-deployment.yaml`
+
+```shell
+      .......
+      containers:
+      - name: metrics-server
+        image: mirrorgooglecontainers/metrics-server-amd64:v0.3.5 # 修改这行
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: tmp-dir
+          mountPath: /tmp
+        args:      # 追加这行
+        - --kubelet-insecure-tls # 追加这行
+        - --kubelet-preferred-address-types=InternalIP # 追加这行
+```
+
+
+
+### ③ 执行
+
+```shell
+kubectl apply -f .  
+
+kubectl get -f . -o wide
+
+# kubectl delete -f .
+```
+
+
+
+```shell
+
+# 查看pod状态
+kubectl get pods -n kube-system -l k8s-app=metrics-server
+
+# 查看pod日志
+mpods=$(kubectl get pods -n kube-system -l k8s-app=metrics-server --output=jsonpath='{.items[*].metadata.name}')
+#echo $mpods
+
+kubectl describe pod $mpods -n kube-system
+kubectl logs $mpods -n kube-system
+
+# 查看性能指标
+kubectl top nodes
+
+kubectl top pods --all-namespaces
+```
+
+
+
+## 7.2 安装扩展监控
+
+主要是安装Prometheus，比较复杂，暂时不安装
+
+
+
+
+
+# 第八步. 让Master可以安装Pod
+
+测试可以，正式环境不行。
+
+使用kubeadm初始化的集群，出于安全考虑Pod不会被调度到Master Node上，也就是说Master Node不参与工作负载。
+
+## ① 开启
+
+测试环境可以使用下面的命令使Master Node参与工作负载：
+
+```shell
+kubectl taint nodes --all node-role.kubernetes.io/master-
+```
+
+
+
+## ② 关闭
+
+禁止master部署pod
+
+```shell
+kubectl taint nodes k8s node-role.kubernetes.io/master=true:NoSchedule
+```
+
+
+
+
+
+
+
 # 参考文档
 
 * 安装相关
@@ -725,4 +862,6 @@ spec:
 * 基础知识
   * [Kubernetes中文社区 | 中文文档](http://docs.kubernetes.org.cn/)
   * [使用 Docker Alpine 镜像安装 nginx](https://www.cnblogs.com/klvchen/p/11015267.html)
+* 第三方知识
+  * [从零搭建Prometheus监控报警系统](https://www.cnblogs.com/chenqionghe/p/10494868.html)
 

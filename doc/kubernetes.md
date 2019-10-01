@@ -21,6 +21,7 @@
 * 管理员
 
   * [给NameSpace分配权限](kubernetes-admin-usercount.md)
+  * [不同NameSpace网络隔离](kubernetes-network.md)
   * [资源配置](kubernetes-admin-resource.md)
   * [NFS网络存储](nfs.md)
 
@@ -32,6 +33,8 @@
   
 
 
+
+# [Linux ss命令详解](https://www.cnblogs.com/ftl1012/p/ss.html)
 
 
 

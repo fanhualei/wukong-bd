@@ -1799,7 +1799,7 @@ Service并不直接链接至Pod，中间还有一层 Endpoints 资源对象(IP�
 
 
 
-## 3.1 服务建立
+## 3.1 Hello Service
 
 
 
@@ -4250,13 +4250,319 @@ kubectl delete -f ingress-tls.yaml
 
 
 
+# 11. Pod自动伸缩 
+
+可以根据CPU与内存的使用情况，来自动控制Pod数量。使用这个功能之前，要安装性能监控工具[第七步. 安装系统监控](kubernetes-kubeadm.md)。
 
 
 
+在使用过程中参考了:https://pdf.us/2019/04/17/3267.html
 
 
 
+## 11.1 基本概念
+
+自动弹性伸缩工具 Auto Scaling包含如下：
+
+* HPA，Horizontal Pod Autoscaler，
+  * 两个版本，HPA仅支持CPU指标；HPAv2支持资源指标API和自定义指标API
+
+* CA，Cluster Autoscaler，
+  * 集群规模自动弹性伸缩，能自动增减节点数量，用于云环境
+
+* VPA，Vertical Pod Autoscaler，
+  * Pod应用垂直伸缩工具，调整Pod对象的CPU和内存资源需求量完成扩展或收缩
+
+* AR，Addon Resizer，
+  * 简化版本的Pod应用垂直伸缩工具，基于集群中节点数量调整附加组件的资源需求量
 
 
 
+## 11.2 HPA(v1)控制器
+
+这个只能控制CPU
+
+### ① 创建Http服务
+
+
+
+```shell
+mkdir ~/12-hpav1 ; cd ~/12-hpav1
+vi ~/pod.yaml
+```
+
+
+
+创建一个http server
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: myapp
+  name: myapp
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: myapp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: myapp
+  name: myapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - image: fanhualei/tomcat-alpine:v1
+        name: myapp
+        ports:
+        - containerPort: 8080
+        command: ['tomcat']
+        args: ['run']
+        resources:
+          limits:     # 最大性能指标
+            cpu: 50m
+            memory: 256Mi
+          requests:   # 基本要求
+            cpu: 50m
+            memory: 256Mi
+```
+
+
+
+```shell
+#生成代码
+kubectl apply -f pod.yaml
+
+#查看pod是否启动
+kubectl get pods -o wide
+
+# 测试这个服务是否可以用
+nodePort=$(kubectl get svc myapp  --output=jsonpath='{.spec.ports[0].nodePort}')
+curl 192.168.1.185:$nodePort
+```
+
+
+
+### ② 配置伸缩指标
+
+
+
+`vi hpa.yaml  ` 
+
+```yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: myapp
+spec:
+  maxReplicas: 5
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: myapp
+  targetCPUUtilizationPercentage: 60
+```
+
+
+
+```shell
+kubectl apply -f hpa.yaml
+
+# 查看 HPA(v1) 支持的功能，他只支持cpu
+kubectl explain HorizontalPodAutoscaler.spec
+```
+
+
+
+*上面的yaml文件可以使用下面的命令生成*
+
+`kubectl autoscale deployment myapp --min=2 --max=5 --cpu-percent=60 -o yaml --dry-run`
+
+
+
+### ③ 进行测试
+
+
+
+> 启动一个窗口监控 pod
+
+```shell
+kubectl get pods -o wide -w
+```
+
+
+
+> 启动一个窗口监控性能
+
+```shell
+watch kubectl top pods
+```
+
+
+
+> 启动一个窗口进行压力测试
+
+`ab`是一个压力测试工具
+
+```shell
+yum install httpd-tools
+ab -c 5000 -n 500000 http://192.168.1.186:31524/
+```
+
+* 根据压力，系统自动添加两节点
+
+![alt](imgs/k8s-hpa-result.png)
+
+
+
+![alt](imgs/k8s-hpa-result-top.png)
+
+* 过了3分钟后，系统自动减少了两个节点
+
+![alt](imgs/k8s-hpa-result-down.png)
+
+
+
+## 11.3 HPA(v2)控制器
+
+v2beta2版本支持 自定义 ，内存 ，但是目前也仅仅是处于beta阶段。
+
+这个在适用的过程中不是太稳定，等成熟了再大规模使用。
+
+**为什么目前正在能使用的指标是 cpu？**
+
+```
+v1的模板可能是大家平时见到最多的也是最简单的，v1版本的HPA只支持一种指标 —— CPU。传统意义上，弹性伸缩最少也会支持CPU与Memory两种指标，为什么在Kubernetes中只放开了CPU呢？
+
+其实最早的HPA是计划同时支持这两种指标的，但是实际的开发测试中发现，内存不是一个非常好的弹性伸缩判断条件。因为和CPU不同，很多内存型的应用，并不会因为HPA弹出新的容器而带来内存的快速回收，因为很多应用的内存都要交给语言层面的VM进行管理，也就是内存的回收是由VM的GC来决定的。
+
+这就有可能因为GC时间的差异导致HPA在不恰当的时间点震荡，因此在v1的版本中，HPA就只支持了CPU一种指标。
+```
+
+
+
+### ① 配置伸缩指标
+
+在上一个例子基础上实验，需要先删除上一个监控指标
+
+```shell
+# 删除上一个监控
+kubectl delete -f hpa.yaml
+
+vi hpa-v2.yaml
+```
+
+
+
+建立一个新的监控指标，这里只监控memory，也可以一起监控
+
+```yaml
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: myapp
+spec:
+  scaleTargetRef:  # 要缩放的目标资源
+    apiVersion: apps/v1
+    kind: Deployment
+    name: myapp
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  #- type: Resource
+  #  resource:
+  #    name: cpu
+  #    targetAverageUtilization: 500
+  - type: Resource
+    resource:
+      name: memory
+      targetAverageValue: 150Mi   # 可以将指标设置的低一点，这样能出效果
+```
+
+实际中，可以监控的内容非常多，例如可以监控一个url地址的访问量。可以从第三方监控设备中得到相关数据库。
+
+```
+metrics，计算所需Pod副本数量的指标列表，每个指标单独计算，取所有计算结果的最大值作为最终副本数量
+- external，引用非附属于任何对象的全局指标，可以是集群之外的组件的指标数据，如消息队列长度
+- object，引用描述集群中某单一对象的特定指标，如Ingress对象上的hits-per-second等
+- pods，引用当前被弹性伸缩的Pod对象的特定指标
+- resource，引用资源指标，即当前被弹性伸缩的Pod对象中容器的requests和limits中定义的指标
+- type，指标源的类型，可为Objects、Pods、Resource
+```
+
+
+
+```shell
+kubectl apply -f hpa-v2.yaml
+kubectl get -f hpa-v2.yaml
+```
+
+### ② 进行测试
+
+
+
+> 启动一个窗口监控 pod
+
+```shell
+kubectl get pods -o wide -w
+```
+
+
+
+> 启动一个窗口监控性能
+
+```shell
+watch kubectl top pods
+```
+
+
+
+> 启动一个窗口进行压力测试
+
+`ab`是一个压力测试工具
+
+```shell
+yum install httpd-tools
+ab -c 100 -n 50000 http://192.168.1.186:31524/
+```
+
+
+
+![alt](imgs/k8s-hpa-test-v2.png)
+
+
+
+### ③  总结
+
+在做的过程中，出现过以下现象：
+
+* 如果自动增加pod后，删除HPA对象或重新执行Deployment，也不能将pod数量变成2.
+  * 这应该是一个bug，因为删除了后，还起作用。
+* Tomcat有一个问题，就是内存一旦上去后，很长时间下不来。
+* 监控内存，等待的时间应该长一点，才能看到结果。
+
+
+
+## 11.4 清空测试数据
+
+```
+kubectl delete -f .
+```
 

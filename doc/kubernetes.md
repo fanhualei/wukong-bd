@@ -29,7 +29,8 @@
 
   * [kubernetes互动教程](kubernetes-code.md)
   * [docker基本技巧](docker-menu.md)
-
+* [helm使用](kubernetes-helm.md)
+  
   
 
 

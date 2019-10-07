@@ -83,6 +83,14 @@ curl 127.0.0.1
 下面的脚本是生成了一个简单的nginx应用
 
 ```shell
+vi create-nginx.sh
+
+chmod +x create-nginx.sh
+```
+
+
+
+```shell
 #!/bin/bash
 
 #create nginx sh
@@ -129,7 +137,7 @@ if [  -d "/data/${APPNAME}" ];then
 fi
 
 # 判断docker 是否存在
-hasContainer=$(docker ps -f name=${APPNAME} | grep ${APPNAME})
+hasContainer=$(docker ps -a -f name=${APPNAME} | grep ${APPNAME})
 if [ -n "$hasContainer"  ];
 then
 	echo "error:container ${APPNAME} has exist,please set other appname"
@@ -158,7 +166,10 @@ sed -i ${numi}"server_tokens off;" /data/${APPNAME}/conf/nginx/nginx.conf
 
 
 # 运行一个正式的文件
-docker run -d -p ${PORT}:80 --name ${APPNAME} -v /data/${APPNAME}/www:/usr/share/nginx/html -v /data/${APPNAME}/conf/nginx:/etc/nginx -v /data/${APPNAME}/logs:/var/log/nginx nginx:alpine
+docker run -d -p ${PORT}:80 --name ${APPNAME} -v /data/${APPNAME}/www:/usr/share/nginx/html -v /data/${APPNAME}/conf/nginx:/etc/nginx -v /data/${APPNAME}/logs:/var/log/nginx nginx:alpine 
+
+# 让这个容器可以随着服务器启动自动启动
+docker update --restart=always  ${APPNAME}  > /dev/null
 
 
 docker ps -a

@@ -10,11 +10,11 @@
 
 
 
-## 1：程序安装
+# 1. 程序安装
 
 
 
-### 1.1：前提条件
+## 1.1. 前提条件
 
 
 
@@ -31,19 +31,19 @@
 
 
 
-### 1.2：安装VirtualBox
+## 1.2. 安装VirtualBox
 
 `virtualbox`安装起来步复杂，建议安装到`d`盘。`centos` 安装起来也不复杂，按照向导安装就可以了。
 
 
 
-### 1.3：新建虚拟机
+## 1.3. 新建虚拟机
 
 按照向导做就可以了，唯一注意的是，在没有安装centos之前一定要选择桥接网卡
 
 ![alt](imgs/vbox-set-net-model.png)
 
-### 1.4：安装Centos
+## 1.4. 安装Centos
 
 按照向导做就可以。唯一要说的，一定要选择启用网络，上不了网会很麻烦的。
 
@@ -53,7 +53,7 @@
 
 
 
-### 1.5：配置静态IP地址
+## 1.5. 配置静态IP地址
 
 静态IP地址还是比较好用的。
 
@@ -100,15 +100,15 @@ ONBOOT="yes"
 
 
 
-## 2：使用VirtualBox
+# 2. 使用VirtualBox
 
 
 
-### 2.1：安装增强组件
+## 2.1. 安装增强组件
 
 只有安装了增强组件后，才进行`文件共享等操作`
 
-#### 2.1.1：将光盘放到模拟光驱中
+### 2.1.1. 将光盘放到模拟光驱中
 
 点击`安装增强功能`，就能模拟这个功能。
 
@@ -128,7 +128,7 @@ ONBOOT="yes"
 
 
 
-#### 2.1.2：进行安装
+### 2.1.2. 进行安装
 
 只要`3.1.1`上面显示已经将安装盘装载到光驱中了，就可以使用下面的命令了。
 
@@ -155,15 +155,15 @@ $ reboot
 
 
 
-### 2.2：共享文件夹
+## 2.2. 共享文件夹
 
 进行文件共享，要安装增强组件。
 
-#### 2.2.1：建立文件夹
+### 2.2.1. 建立文件夹
 
-找个地方，建立一个`share`的文件夹。例如：`d:\vhosts\share`
+找个地方，建立一个`share`的文件夹。例如. `d:\vhosts\share`
 
-#### 2.2.2：设置共享文件夹
+### 2.2.2. 设置共享文件夹
 
 ![alt](imgs/vbox-share-dir.png)
 
@@ -171,7 +171,7 @@ $ reboot
 
 
 
-#### 2.2.3：查看文件夹内容
+### 2.2.3. 查看文件夹内容
 
 可以重启，或者不用，查看/mdia目录，可以看到共享的文件夹
 
@@ -191,9 +191,103 @@ mount -t vboxsf share mount_point
 
 
 
+# 3. 导入镜像备份
+
+系统备份了两个镜像，一个是centos的，一个是kubernetes的基础镜像。
 
 
-## 3: Vagrant
+
+## 3.1 导入centos镜像
+
+通过下面的配置基本上可以使用了。
+
+
+
+### ①  修改IP地址
+
+启动虚拟机，并配置网络ifcfg-enp0s8，有两个地方要修改
+
+- `vi /etc/sysconfig/network-scripts`
+- IPADDR =192.168.1.***
+- UUID 改成与其他不同就可以了
+
+```shell
+service network restart   #重启网络
+```
+
+
+
+
+
+### ② 修改HostName
+
+每个机器的名字**应该都不一样**，这样好管理
+
+下面应该应该根据具体的情况，来修改`*****` 的名称
+
+```shell
+hostnamectl set-hostname *****
+hostname
+```
+
+
+
+查看设置hosts的配置
+
+```
+more /etc/hosts
+```
+
+
+
+### ③ 查看防火墙
+
+```shell
+#查看防火墙状态
+systemctl status firewalld
+#查看防火墙开发的端口	
+firewall-cmd --list-ports  
+```
+
+
+
+### ④  安装基本工具
+
+```shell
+yum -y install wget
+yum install -y net-tools
+```
+
+
+
+⑤ 安装Docker
+
+为了强力推荐使用Docker，那么可以安装docker。
+
+> 如果要安装最新版，可以使用一行命令就能安装完毕了
+
+```shell
+## 安装
+$ curl -sSL https://get.daocloud.io/docker | sh
+$ docker -v
+# Docker version 19.03.2, build 6a30dfc
+
+##修改docker镜像地址，官方的镜像库连接太慢，这里转到daocloud镜像库。 
+$ curl -sSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://91c0cc1e.m.daocloud.io 
+
+## 启动docker服务，并设置开机启动 
+$ systemctl enable docker.service && service docker start
+```
+
+
+
+> 如果要安装特定版本，例如配合Kubernetes使用，可以参考[Kuernetes安装](kubernetes-kubeadm.md)
+
+
+
+
+
+# 4. Vagrant
 
 Vagrant是一个基于Ruby的工具，用于创建和部署虚拟化开发环境。它 使用Oracle的开源[VirtualBox](https://baike.baidu.com/item/VirtualBox)虚拟化系统，使用 Chef创建自动化虚拟环境。
 
@@ -201,9 +295,9 @@ Vagrant是一个基于Ruby的工具，用于创建和部署虚拟化开发环境
 
 
 
-## 4：网络模式分析
+# 5. 网络模式分析
 
-### 
+
 
 - （推荐）使用网桥模式
   - 好处是配置简单，网络是通的
@@ -230,7 +324,7 @@ Vagrant是一个基于Ruby的工具，用于创建和部署虚拟化开发环境
 
 
 
-## 5 选择其他模式（不成熟）
+# 6. 选择其他模式（不成熟）
 
 **这章节今后会删除**
 
@@ -240,7 +334,7 @@ Vagrant是一个基于Ruby的工具，用于创建和部署虚拟化开发环境
 
 
 
-说明：CentOS 7.0默认安装好之后是没有自动开启网络连接的！
+说明. CentOS 7.0默认安装好之后是没有自动开启网络连接的！
 
 ```
 cd  /etc/sysconfig/network-scripts/
@@ -252,13 +346,13 @@ ping www.baidu.com  #测试网络是否正常
 
 
 
-#### 5.1：默认安装后就能访问外网
+## 6.1. 默认安装后就能访问外网
 
 按照默认的安装，`虚拟机`可以访问外网，但是`主机`访问虚拟机很麻烦。
 
 
 
-> centos01机器安装后，默认的就是：网络地址转换(NAT)
+> centos01机器安装后，默认的就是. 网络地址转换(NAT)
 
 ![alt](imgs/net-ant-01.png)
 
@@ -320,7 +414,7 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 
 
-#### 5.2：优化网络配置host-only
+## 6.2. 优化网络配置host-only
 
 如果你感觉转发不爽，也可以使用直连的方式，当然刚才的`ant`模式不能删除，不然访问不了外网。
 
@@ -359,7 +453,7 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 
 
-##### 5.2.1 固定IP 
+### 6.2.1 固定IP 
 
 现在都是动态IP，有可能重启后，就找不到这个IP了，这样就不好登录了，所以可以将`192.168.56.102`这个IP固定了。 可以这么来设置
 
@@ -367,7 +461,7 @@ ping 上面的ip是不行了。那么使用ssh登录页是不行的。
 
 [Virtualbox+Centos 7虚拟机设置host-only网卡的静态IP地址](https://blog.csdn.net/yongge1981/article/details/78903886)
 
-我具体的操作如下：
+我具体的操作如下. 
 
 ```shell
 cd /etc/sysconfig/network-scripts
@@ -404,7 +498,7 @@ GATEWAY=192.168.56.1
 
 
 
-##### 5.2.2 通过镜像复制虚拟机
+### 6.2.2 通过镜像复制虚拟机
 
 假设已经安装了一台虚拟机centos02
 

@@ -1,4 +1,4 @@
-## Tomcat镜像制作
+# Tomcat镜像制作
 
 
 
@@ -6,9 +6,43 @@
 
 
 
+# 1. 使用官方镜像
+
+> 预备知识
+
+当前正式线使用的是：apache-tomcat-9.0.2 ，jdk1.8.0_161
+
+所以使用的tomcat版本是：`tomcat : 9.0.20-jre8-alpine`
+
+[tomcat安全配置]([https://github.com/fanhualei/wukong-framework/blob/master/reference/webSecurity.md#tomcat%E5%AE%89%E5%85%A8%E9%85%8D%E7%BD%AE](https://github.com/fanhualei/wukong-framework/blob/master/reference/webSecurity.md#tomcat安全配置))
 
 
-## 基于alpine
+
+## 1.1 测试镜像
+
+```shell
+docker run --name my-tomcat -p 8080:8080 -d tomcat:9.0.20-jre8-alpine
+
+docker exec -it my-tomcat  /bin/sh 
+
+docker update --restart=always  my-tomcat
+
+# 使用http访问：http://192.168.1.179:8080/
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 2. 自制镜像
 
 使用一个最小的linux操作系统，为了测试，生产环境中，要使用centos.
 
@@ -280,6 +314,15 @@ docker push fanhualei/tomcat-alpine:v3
 ```
 
 
+
+
+
+
+
+# 参考文档
+
+- [docker-tomcat-hub](https://hub.docker.com/_/tomcat)
+- [菜鸟-Docker 安装 Tomcat](https://www.runoob.com/docker/docker-install-tomcat.html)
 
 
 

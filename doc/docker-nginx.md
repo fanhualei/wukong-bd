@@ -69,7 +69,22 @@ nginx官方docker地址：https://hub.docker.com/_/nginx
 
 
 
-### ①  手工安装
+### ①  自动安装
+
+下面的脚本是生成了一个简单的nginx应用。
+
+有两个参数，第一个是docker名称，第二个是端口号。 默认在/data下建立相关挂载目录。
+
+```shell
+# 这是一个自动生成的脚本
+curl -sSL https://raw.githubusercontent.com/fanhualei/wukong-bd/master/examples/docker/script/create-nginx.sh | bash /dev/stdin my-nginx 80
+```
+
+
+
+
+
+### ② 手工安装
 
 ```shell
 # 创建要保存的目录
@@ -104,22 +119,118 @@ curl 127.0.0.1
 
 
 
-### ②  自动安装
+## 2.3 反向代理Tomcat
+
+### 2.3.1 安装Tomcat
+
+[Tomcat安装文档](docker-tomcat.md)，假设这个tomcat映射到到了 8080端口
 
 
 
-下面的脚本是生成了一个简单的nginx应用
+### 2.3.2 配置反向代理
+
+
+
+#### ①  得到宿主ip地址
 
 ```shell
-# 这是一个自动生成的脚本
-curl -sSL https://raw.githubusercontent.com/fanhualei/wukong-bd/master/examples/docker/script/create-nginx.sh | bash /dev/stdin my-nginx 80
+#得到IP地址
+ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"
+
+#得到第二行IP地址
+ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:" | awk 'END {print}'
+
+```
+
+
+
+#### ②  编辑conf文件
+
+`my-nginx` 是nginx的docker外挂目录
+
+`my-tomcat`要反向代理的tomcat的docker容器名字
+
+```shell
+vi /data/my-nginx/conf/nginx/myconf/my-tomcat.conf
+```
+
+
+
+> my-tomcat.conf 文件
+
+```xml
+server {
+  listen 80;
+  #这个需要修改
+  server_name my-tomcat;
+  server_tokens off;
+  ## Don't show the nginx version number, a security best practice
+
+  location / {
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_set_header   Host      $http_host;
+    #这个需要修改
+    proxy_pass  http://192.168.1.179:8080;
+  }
+}
+```
+
+
+
+#### ③  修改Nginx网络模式
+
+只有这么做，才可以访问到各个容器的在宿主机上的端口
+
+```shell
+docker rm -f my-nginx
+
+docker run -d --network host  --name my-nginx -v /data/my-nginx/www:/usr/share/nginx/html -v /data/my-nginx/conf/nginx:/etc/nginx -v /data/my-nginx/logs:/var/log/nginx nginx:alpine
+```
+
+
+
+#### ④ 修改宿主机防火墙
+
+
+
+```shell
+# 添加指定需要开放的端口：
+firewall-cmd --add-port=80/tcp --permanent
+# 重载入添加的端口：
+firewall-cmd --reload
+# 查询指定端口是否开启成功：
+firewall-cmd --query-port=80/tcp
 ```
 
 
 
 
 
+#### ⑤ 测试
 
+* 在一台windwos机器上配置hosts
+* 在浏览器中访问
+  * http://my-tomcat/
+
+
+
+
+
+#### ⑥ 常用命令
+
+
+
+```shell
+#检查配置文件
+docker exec  my-nginx nginx -t
+docker exec -it my-nginx nginx -s reload
+```
+
+
+
+```
+curl "http://my-tomcat" -x 127.0.0.1
+```
 
 
 

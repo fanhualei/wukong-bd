@@ -28,14 +28,14 @@ mkdir rabbitmq mysql redis tomcat-hz tomcat-wx
 
 
 
-## 2.2. 定义数据目录(忽略)
+## 2.2. 定义存储空间
 
 如果是使用本地目录，docker-compose会自动建立，**可以不执行下面的代码**。
 
 如果使用nfs网络存储，需要重新挂载网络存储。
 
 ```shell
-#如果是使用本地目录，docker-compose会自动建立，可以不执行下面的代码。
+#如果是使用本地目录，docker-compose会自动建立，下面的代码是示例，没有实际用途
 mkdir /data/myapp
 cd /data/myapp
 mkdir rabbitmq mysql redis tomcat-hz tomcat-wx
@@ -47,7 +47,79 @@ mkdir rabbitmq mysql redis tomcat-hz tomcat-wx
 
 # 3. 具体实现
 
-①②③④⑤⑥⑦⑧⑨
+
+
+
+
+## 3.0 常见问题
+
+### ① 容器的时区问题
+
+docket安装的默认是美国时区，如果宿主机是北京时间，那么会发现双方相差几个小时
+
+```shell
+#测试方法：登录到容器中,执行这个指令，看看日期与宿主机器是否相同
+date
+```
+
+> 解决方法
+
+```shell
+#在compose文件中的volumes，将宿主机器的文件给复制到容器中，:ro 表示只读，担心被容器给写了
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+```
+
+
+
+
+
+### ② Tomcat时区问题
+
+即使Docker容器的时区设置对了，但是看Tomcat日期，时区还是不对。
+
+这时候需要传递一个环境变量给容器。
+
+> 解决方法
+
+```shell
+#在compose文件中给Tomcat添加系统变量
+    environment:  
+      TZ: 'Asia/Shanghai'  
+```
+
+
+
+
+
+### ③ Mysql时区问题
+
+> 解决方法
+
+将Mysql所在容器的时区配置正确，mysql时区取自所在容器。
+
+具体解决方案见：***① 容器的时区问题***
+
+
+
+### ④ 严格启动顺序
+
+tomcat 只有在Mysql Redis 与 RabbitMq 启动后才可以用
+
+使用诸如[wait-for-it](https://github.com/vishnubob/wait-for-it)， [dockerize](https://github.com/jwilder/dockerize)或sh-compatible [wait-for之类的工具](https://github.com/Eficode/wait-for)。这些是小型包装脚本，您可以在应用程序的映像中包括这些脚本，以轮询给定的主机和端口，直到它接受TCP连接为止。
+
+```yaml
+# 例子代码
+depends_on:
+  - mysql
+  entrypoint: “bash /usr/local/bin/wait-for-it.sh mysql:3306 – java -jar /safebox-eureka.jar”
+```
+
+
+
+Docker官网也给出了一些解决方案：https://docs.docker.com/compose/startup-order/
+
+
 
 ## 3.1 定义变量
 
@@ -119,7 +191,7 @@ vi /opt/myapp/tomcat-wx/Dockerfile
 ```dockerfile
 #带有管理界面的rabbitmq
 FROM tomcat:9.0.20-jre8-alpine
-#关于修改配置，这里省略
+#修改配置
 COPY server.xml /usr/local/tomcat/conf
 ```
 
@@ -197,20 +269,22 @@ services:
   tomcat-wx:
     hostname: tomcat-wx
     restart: always
-    image: tomcat:9.0.20-jre8-alpine
-    #容器的映射端口
+    build: ./tomcat-wx
+    #容器的映射端口，21080是宿主机的端口
     ports:
-      - 8080:20180    
+      - 21080:8080    
     #定义挂载点
     volumes:
       - ${DATA_PATH}/tomcat-wx/webapps:/usr/local/tomcat/webapps
       - ${DATA_PATH}/tomcat-wx/logs:/usr/local/tomcat/logs
+      - /etc/localtime:/etc/localtime:ro
+    environment:  
+      TZ: 'Asia/Shanghai'  
     #启动依赖  
     depends_on:
       - mysql
       - redis
       - rabbitmq
-
 
   #mysql
   mysql:
@@ -220,6 +294,7 @@ services:
     volumes:
       - ${DATA_PATH}/mysql/conf:/etc/mysql/conf.d
       - ${DATA_PATH}/mysql/data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
     environment:
       MYSQL_ROOT_PASSWORD: mysql@root
       
@@ -242,23 +317,21 @@ services:
 
 
 
-## 3.4 执行Compose
+## 3.4 生成容器
 
 ```shell
-docker-compose up -d
+docker-compose up --build -d
 ```
 
 
 
 
 
+## 3.5 单元测试
 
+①②③④⑤⑥⑦⑧⑨
 
-## 3.5 进行测试
-
-
-
-### ① 常用命令
+### 3.5.1 常用命令
 
 ```shell
 #停止运行并移除容器
@@ -288,7 +361,148 @@ docker-compose pull 镜像名
 
 
 
+### 3.5.2 测试Tomcat
 
+#### ① 添加index.html
+
+```shell
+echo hello James.    $(date +%F%n%T) > /data/myapp/tomcat-wx/webapps/index.html
+```
+
+
+
+#### ② 浏览器打开首页
+
+由于tomcat-wx外挂了`21080`，所以可以用宿主机的IP地址来访问。
+
+在浏览器中输入：http://192.168.1.179:21080/
+
+
+
+#### ③ 测试日志是否正确
+
+日志的日期，以及日志是否持久化
+
+```shell
+ls /data/myapp/tomcat-wx/logs
+more /data/myapp/tomcat-wx/logs/localhost_access_log.2019-10-09.txt
+```
+
+
+
+```shell
+catalina.2019-10-09.log  # tomcat自身的日志
+host-manager.2019-10-09.log   # 管理相关日志
+localhost.2019-10-09.log  
+localhost_access_log.2019-10-09.txt  #访问日志文件
+manager.2019-10-09.log # 管理相关日志
+```
+
+
+
+#### ④ 登录到容器中
+
+看看日期是否正确
+
+```shell
+docker-compose exec  tomcat-wx  /bin/sh
+#看与宿主机是否一致
+date
+```
+
+
+
+### 3.5.3 测试Mysql
+
+
+
+#### ① 登录到容器中
+
+看看日期是否正确
+
+```shell
+docker-compose exec  mysql  /bin/sh
+#看与宿主机是否一致
+date
+
+#登录到mysql 
+mysql -uroot -pmysql@root
+
+#看看mysql的 now()函数日期与服务器是否一致
+mysql>select now();
+
+#看看mysql的 时区是否取自服务器
+mysql>show variables like '%time_zone%';
+```
+
+
+
+#### ② mysql数据持续化
+
+登录到mysql中添加数据，在今后的过程中，再重新Up时候，看看数据是否保存下来
+
+```shell
+docker-compose exec  mysql  /bin/sh
+
+#登录到mysql 
+mysql -uroot -pmysql@root
+> show databases;
+> create database wk;
+> use wk;
+> show tables;
+> create table user (id int,name varchar(50));
+> insert into user values(1,'james');
+> insert into user values(2,'sophia');
+> select * from user;
+```
+
+
+
+#### ③ 批量导入数据
+
+* 初始化脚本
+
+  
+
+
+
+#### ④ 备份数据库
+
+* 定期
+* 不定期
+
+
+
+
+
+## 3.6 集成测试
+
+> 测试的主要内容
+
+* 内部集成
+  * 内部 Tomcat Redis Mysql rabbitMq联通
+* Nginx集成
+  * 方向代理Tomcat
+    * Https解析
+    * WebSocket
+  * 反向代理RabbitMq
+
+
+
+
+
+## 3.7 压力测试
+
+
+
+> 启动一个窗口进行压力测试
+
+`ab`是一个压力测试工具
+
+```shell
+yum install httpd-tools
+ab -c 5000 -n 500000 http://192.168.1.186:31524/
+```
 
 
 

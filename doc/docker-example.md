@@ -121,6 +121,12 @@ Docker官网也给出了一些解决方案：https://docs.docker.com/compose/sta
 
 
 
+### ⑤ 是否选择OpenJdk
+
+OpenJdk与Oracle发行版的选择
+
+
+
 ## 3.1 定义变量
 
 ```shell
@@ -199,7 +205,166 @@ COPY server.xml /usr/local/tomcat/conf
 
 
 
-### 3.2.2 Rabbitmq
+### 3.2.2 Mysql
+
+
+
+
+
+#### ① 宿主机上备份数据
+
+
+
+#### ② 宿主机上导入数据
+
+
+
+
+
+### 3.2.3 Backup定时备份
+
+
+
+#### ① 注意事项
+
+* docker守护进程
+
+```
+如果记得在生成一个alpine镜像时，要做一个for循环，不然镜像就退出。
+由于/bin/sh ash 都是后台执行，所以容器会exit
+这就时说为什么要做 crond -f  ， -f 是让crond在前台执行。
+```
+
+* 使用 bash或ash(alpine)进行登录
+
+```
+使用/bin/sh登录容器，删除键不好用
+```
+
+* ENTRYPOINT 还没有弄明白怎么做
+
+
+
+
+
+
+
+#### ② 创建备份sh
+
+
+
+> 定义工作目录
+
+```shell
+mkdir -p /opt/myapp/backup; cd /opt/myapp/backup
+```
+
+
+
+
+
+```shell
+cd /opt/myapp/backup
+vi backup.sh
+```
+
+
+
+> backup.sh
+
+```sh
+#!/bin/sh
+
+#database info
+DB_USER="root"
+DB_PASS=$MYSQL_ROOT_PASSWORD
+DB_HOST=$MYSQL_HOST
+DB_NAME=$MYSQL_DB
+
+# Others vars
+ADM_DIR="/myapp/mysqladm/"            #the backup.sh path
+BCK_DIR="/myapp/mysqladm/files"    #the backup file directory
+
+if [ ! -d $ADM_DIR  ];then
+  mkdir $ADM_DIR
+fi
+
+if [ ! -d $BCK_DIR  ];then
+  mkdir $BCK_DIR
+fi
+
+
+DATE=`date +%F`
+
+mysqldump --opt -u$DB_USER -p$DB_PASS -h$DB_HOST $DB_NAME > $BCK_DIR/db_$DATE.sql
+```
+
+> 可以执行
+
+```shell
+chmod +x backup.sh
+```
+
+
+
+#### ③  配置定时任务
+
+
+
+```shell
+cd /opt/myapp/backup
+#设定定时任务,每天早上3点1分进行备份
+cat <<EOF > crontab.bak
+1 3 * * * /myapp/mysqladm/backup.sh
+EOF
+#做结尾行，不然会出现错误
+echo "" >> crontab.bak
+
+```
+
+
+
+下面是测试用，每分钟备份一次
+
+```
+*/1 * * * * /myapp/mysqladm/backup.sh
+```
+
+
+
+
+
+#### ④ 撰写Dockerfile
+
+```shell
+cd /opt/myapp/backup
+vi /opt/myapp/backup/Dockerfile
+```
+
+> Dockerfile
+
+```dockerfile
+#备份镜像
+FROM alpine
+
+#复制备份脚本
+COPY backup.sh    /myapp/mysqladm/
+#复制定时任务
+COPY crontab.bak  /myapp/
+
+
+# 安装mysql客户端
+RUN apk add --no-cache mysql-client \
+      # 启动定时任务
+      && crontab /myapp/crontab.bak    
+
+# 启动定时任务,必须添加-f ,不然容器启动不了
+CMD ["crond","-f"]
+```
+
+
+
+### 3.2.4 Rabbitmq
 
 由于Rabbitmq需要启动MQTT插件，所以这里单独定制了一个镜像。
 
@@ -240,14 +405,20 @@ RabbitMQ 已经有一些自带管理插件的镜像。用这些镜像创建的�
 
 > 相关文档
 
-* [RabbitMQ手册之rabbitmq-plugins](https://www.jianshu.com/p/0ff7c2e5c7cb)
-* [Docker安装RabbitMQ配置MQTT](https://blog.csdn.net/hololens/article/details/80059991)
+- [RabbitMQ手册之rabbitmq-plugins](https://www.jianshu.com/p/0ff7c2e5c7cb)
+- [Docker安装RabbitMQ配置MQTT](https://blog.csdn.net/hololens/article/details/80059991)
 
 
 
 #### ③ 遗留问题
 
-* 如何进行持久化
+- 如何进行持久化
+
+
+
+
+
+
 
 
 
@@ -297,6 +468,20 @@ services:
       - /etc/localtime:/etc/localtime:ro
     environment:
       MYSQL_ROOT_PASSWORD: mysql@root
+      
+  #定时备份业务：将要备份的数据库传入，同时要设置日期，不然时间不对。    
+  backup:
+    hostname: backup
+    build: ./backup
+    restart: always
+    tty: true
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql@root
+      MYSQL_HOST: mysql
+      MYSQL_DB: sys
+    volumes:
+      - ${DATA_PATH}/backup/mysql:/myapp/mysqladm/files
+      - /etc/localtime:/etc/localtime:ro
       
   #redis
   redis:
@@ -445,7 +630,7 @@ mysql>show variables like '%time_zone%';
 docker-compose exec  mysql  /bin/sh
 
 #登录到mysql 
-mysql -uroot -pmysql@root
+
 > show databases;
 > create database wk;
 > use wk;
@@ -453,23 +638,36 @@ mysql -uroot -pmysql@root
 > create table user (id int,name varchar(50));
 > insert into user values(1,'james');
 > insert into user values(2,'sophia');
-> select * from user;
+> select * from wk.user;
 ```
 
 
 
-#### ③ 批量导入数据
+#### ③ 备份数据库
+
+- 定期
+- 不定期
+
+```shell
+#在宿主机上，进入compose工程目录中，可以快速进入mysql
+docker-compose exec  mysql  mysql -uroot -pmysql@root
+```
+
+
+
+
+
+
+
+
+
+#### ④ 批量导入数据
 
 * 初始化脚本
 
   
 
 
-
-#### ④ 备份数据库
-
-* 定期
-* 不定期
 
 
 

@@ -1,0 +1,90 @@
+
+version: '3'
+services:
+
+  tomcat-wx:
+    hostname: tomcat-wx
+    restart: always
+    build: ./tomcat-wx
+    #容器的映射端口，21080是宿主机的端口
+    ports:
+      - 21080:8080    
+    #定义挂载点
+    volumes:
+      - ${DATA_PATH}/tomcat-wx/webapps:/usr/local/tomcat/webapps
+      - ${DATA_PATH}/tomcat-wx/logs:/usr/local/tomcat/logs
+      - /etc/localtime:/etc/localtime:ro
+    environment:  
+      TZ: 'Asia/Shanghai'  
+    #启动依赖  
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+
+  #mysql
+  mysql:
+    hostname: mysql
+    image: mysql:5.7
+    restart: always
+    volumes:
+      - ${DATA_PATH}/mysql/conf:/etc/mysql/conf.d
+      - ${DATA_PATH}/mysql/data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql@root
+      
+  #定时备份业务：将要备份的数据库传入，同时要设置日期，不然时间不对。    
+  backup:
+    hostname: backup
+    build: ./backup
+    restart: always
+    tty: true
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql@root
+      MYSQL_HOST: mysql
+      MYSQL_DB: sys
+    volumes:
+      - ${DATA_PATH}/backup/mysql:/myapp/mysqladm/files
+      - /etc/localtime:/etc/localtime:ro
+    #启动依赖  
+    depends_on:
+      - mysql      
+      
+  #redis
+  redis:
+    hostname: redis
+    image: redis:5.0.6-alpine
+    restart: always
+    # 开启持久化，并设置密码
+    command: redis-server --appendonly yes --requirepass "redis123"
+    volumes:
+      - ${DATA_PATH}/redis/data:/data
+      - /etc/localtime:/etc/localtime:ro
+      
+  #rabbitmq
+  rabbitmq:
+    hostname: rabbitmq
+    build: ./rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: fanhualei 
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DATA_PATH}/rabbitmq/data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+      
+      
+  #mosquitto 主要是为了测试 rabbitmq的客户端
+  mosquitto:
+    hostname: mosquitto
+    image: eclipse-mosquitto:1.6.7
+    restart: always     
+
+
+
+
+
+

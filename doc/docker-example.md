@@ -147,11 +147,24 @@ DATA_PATH=/data/myapp
 
 
 
-### 3.2.1 Tomcat
+### Tomcat
+
+有两种做法：
+
+* 不适用DockerFile
+  * 好处是，不用再编译镜像了，生了编译的过程与空间。
+  * 将编译好的server.xml直接通过`-v`外挂到镜像中。
+* 使用DockerFile
+  * 坏处是多了一个镜像文件
+  * 好处是为了未来，可以将应用程序等打包到镜像中，今后使用镜像来更新程序。
+
+
 
 由于Tomcat需要单独的配置，所以这里单独进行了设置。
 
 实际中`tomcat-wx tomcat-hz`要分别建立不同的Dockerfile文件，另外按照官网的提示，要将应用程序打包到镜像中。
+
+
 
 
 
@@ -458,33 +471,32 @@ RUN rabbitmq-plugins enable --offline rabbitmq_mqtt
 
 
 
-#### ② 参考资料
+#### ② 映射端口
 
-RabbitMQ 已经有一些自带管理插件的镜像。用这些镜像创建的容器实例可以直接使用默认的 15672 端口访问，默认账号密码是`guest/guest`：
-
-
-
-映射端口
-
-- `15672` 是rabbitmq management管理界面默认访问端口
-- `5672` 是amqp默认端口
-- `1883` 是mqtt tcp协议默认端口
-- `15675` 是web_mqtt ws协议默认端口
+RabbitMQ 已经有一些自带管理插件的镜像。用这些镜像创建的容器实例可以直接使用默认的 15672 端口访问，默认账号密码是`guest/guest`
 
 
+
+
+
+- `4369` (epmd), `25672` (Erlang distribution)
+- `5672` 是amqp默认端口 , `5671` (AMQP 0-9-1 without and with TLS)
+- `15672` (if management plugin is enabled) 是rabbitmq management管理界面默认访问端口
+- `61613`, `61614` (if STOMP is enabled)
+- `1883`, `8883` (if MQTT is enabled)  mqtt tcp协议默认端口
+
+
+
+
+
+#### ③  参考资料
 
 > 相关文档
 
 - [RabbitMQ手册之rabbitmq-plugins](https://www.jianshu.com/p/0ff7c2e5c7cb)
 - [Docker安装RabbitMQ配置MQTT](https://blog.csdn.net/hololens/article/details/80059991)
-
-
-
-#### ③ 遗留问题
-
-- 如何进行持久化
-
-
+- [Docker 部署 RabbitMQ 集群](https://www.jianshu.com/p/52546bcf8723?utm_source=oschina-app)
+- [RabbitMQ的简单使用](https://blog.csdn.net/wangbing25307/article/details/80845641)
 
 
 
@@ -576,7 +588,18 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: fanhualei 
     volumes:
-      - /etc/localtime:/etc/localtime:ro    
+      - /etc/localtime:/etc/localtime:ro
+      - ${DATA_PATH}/rabbitmq/data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+      
+      
+  #mosquitto 主要是为了测试 rabbitmq的客户端
+  mosquitto:
+    hostname: mosquitto
+    image: eclipse-mosquitto:1.6.7
+    restart: always      
+      
 ```
 
 
@@ -793,9 +816,116 @@ docker-compose exec redis redis-cli -a redis123
 
 [参考文档](https://github.com/fanhualei/wukong-framework/blob/master/reference/mq.md)
 
+#### ①  Web是否可以访问
+
+在浏览器中输入`http://192.168.1.179:15672/  `，访问到rabbitmq，用户名：guest  密码：fanhualei
 
 
 
+#### ②  rabbitmq基本操作
+
+```shell
+docker-compose exec rabbitmq /bin/ash
+
+#查看状态
+rabbitmqctl status
+
+#查看可用插件及已安装插件
+rabbitmq-plugins list
+
+#查看用户
+rabbitmqctl list_users
+
+#添加管理用户
+rabbitmqctl add_user admin yourpassword
+rabbitmqctl set_user_tags admin administrator
+```
+
+
+
+#### ③ 测试mosquitto服务
+
+mosquitto是一个mqtt服务，docker镜像才3M，所以拿过来当客户端用。
+
+[Mosquitto-pub地址](https://mosquitto.org/man/mosquitto_pub-1.html)  [Mosquitto-sub地址](https://mosquitto.org/man/mosquitto_sub-1.html)
+
+
+
+> 打开一个窗口，用来监听
+
+```
+docker-compose exec mosquitto mosquitto_sub -t topic1 
+```
+
+想结束了，就用`ctrl+c`来结束
+
+
+
+> 打开一个窗口，用来发送
+
+```
+docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'
+```
+
+
+
+
+
+#### ④ 测试rabbitmq-mqtt
+
+* -h rabbitmq 用来将服务器指向rabbitmq
+* -u guest 用户名
+* -p fanhualei 密码
+
+
+
+> 打开一个窗口，用来监听
+
+```
+docker-compose exec mosquitto mosquitto_sub -t topic1  -h rabbitmq -u guest -P fanhualei
+```
+
+想结束了，就用`ctrl+c`来结束
+
+
+
+> 打开一个窗口，用来发送
+
+```
+docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabbitmq -u guest -P fanhualei
+```
+
+
+
+![alt](imgs/docker-compose-rabbitmq-mqtt.png)
+
+
+
+#### ⑤ 添加一些数据
+
+添加exchange
+
+![alt](imgs/docker-compose-rabbitmq-exchange.png)
+
+
+
+#### ⑥ 删除容器后看数据
+
+做了数据持久化，删除容器后，容器中的数据应该在。
+
+
+
+
+
+
+
+
+
+> mqtt客户端
+
+* [MQTT入门（4）- 客户端工具](https://www.iteye.com/blog/rensanning-2406598)
+
+* 推荐：MQTTfx  或 Mosquitto 
 
 
 
@@ -812,6 +942,20 @@ docker-compose exec redis redis-cli -a redis123
     * Https解析
     * WebSocket
   * 反向代理RabbitMq
+
+### ①  容器内部集成
+
+上面已经测试过，`backup` 可以连通`mysql` 。 `mosquitto` 可以连通`rabbitmq`
+
+下面就不进行实际的测试了。
+
+
+
+### ② Nginx 反向代理tomcat
+
+
+
+### ③ Nginx 反向Https
 
 
 

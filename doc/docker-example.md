@@ -207,17 +207,58 @@ COPY server.xml /usr/local/tomcat/conf
 
 ### 3.2.2 Mysql
 
+官网给出了示例代码
+
+```shell
+#Creating database dumps
+docker exec some-mysql sh -c 'exec mysqldump --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' > /some/path/on/your/host/all-databases.sql
+
+#Restoring data from dump files
+docker exec -i some-mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < /some/path/on/your/host/all-databases.sql
+```
 
 
 
 
-#### ① 宿主机上备份数据
+
+#### ① 宿主机上导入数据
+
+> 模拟一个SQL语句
+
+定义一个文件：init.sql
+
+```sql
+create database wk;
+use wk;
+create table user (id int,name varchar(50));
+insert into user values(1,'james');
+insert into user values(2,'sophia');
+```
 
 
 
-#### ② 宿主机上导入数据
+> 进行导入
+
+* 一定要加上-T 
+* 执行这个一定要小心。应该在开发环境测试无误后，再提交到服务器上
 
 
+
+```shell
+docker-compose exec -T mysql sh -c 'exec mysql -uroot -pmysql@root ' < ./00-sql-init/init.sql
+```
+
+
+
+
+
+#### ② 宿主机上备份数据
+
+导出一个以秒为日期的数据
+
+```shell
+docker-compose exec mysql sh -c 'exec mysqldump --opt -uroot -pmysql@root wk' >wk-$(date +"%Y%m%d-%H%M%S").sql
+```
 
 
 
@@ -245,11 +286,7 @@ COPY server.xml /usr/local/tomcat/conf
 
 
 
-
-
-
-
-#### ② 创建备份sh
+#### ② 创建数据库备份脚本
 
 
 
@@ -259,9 +296,7 @@ COPY server.xml /usr/local/tomcat/conf
 mkdir -p /opt/myapp/backup; cd /opt/myapp/backup
 ```
 
-
-
-
+> 建立脚本
 
 ```shell
 cd /opt/myapp/backup
@@ -281,7 +316,7 @@ DB_PASS=$MYSQL_ROOT_PASSWORD
 DB_HOST=$MYSQL_HOST
 DB_NAME=$MYSQL_DB
 
-# Others vars
+# 定义在容器内部的路径
 ADM_DIR="/myapp/mysqladm/"            #the backup.sh path
 BCK_DIR="/myapp/mysqladm/files"    #the backup file directory
 
@@ -295,9 +330,31 @@ fi
 
 
 DATE=`date +%F`
+#备份数据库的文件名
+OUT_SQL="${DB_NAME}-${DATE}.sql"
 
-mysqldump --opt -u$DB_USER -p$DB_PASS -h$DB_HOST $DB_NAME > $BCK_DIR/db_$DATE.sql
+#最终保存的数据库备份文件名
+TAR_SQL="${DB_NAME}-${DATE}.tar"
+
+mysqldump --opt -u$DB_USER -p$DB_PASS -h$DB_HOST $DB_NAME > $BCK_DIR/$OUT_SQL
+
+#========================================
+#DAYS=15代表删除15天前的备份，即只保留最近15天的备份
+DAYS=15
+
+#进入备份存放目录
+cd $BCK_DIR
+tar -czf $TAR_SQL ./$OUT_SQL
+
+#删除.sql格式的备份文件
+rm $OUT_SQL
+
+
+#删除15天前的备份文件(注意：{} \;中间有空格)
+find $BCK_DIR -name "${DB_NAME}-*" -type f -mtime +$DAYS -exec rm {} \;
 ```
+
+
 
 > 可以执行
 
@@ -307,7 +364,20 @@ chmod +x backup.sh
 
 
 
-#### ③  配置定时任务
+#### ③ 创建应用程序备份脚本
+
+主要备份的内容有：
+
+* 应用程序
+* 用户上传的数据，例如图片，文件等。
+
+具体操作省略
+
+
+
+
+
+#### ④  配置定时任务
 
 
 
@@ -334,7 +404,7 @@ echo "" >> crontab.bak
 
 
 
-#### ④ 撰写Dockerfile
+#### ⑤ 撰写Dockerfile
 
 ```shell
 cd /opt/myapp/backup
@@ -482,6 +552,9 @@ services:
     volumes:
       - ${DATA_PATH}/backup/mysql:/myapp/mysqladm/files
       - /etc/localtime:/etc/localtime:ro
+    #启动依赖  
+    depends_on:
+      - mysql      
       
   #redis
   redis:
@@ -492,12 +565,18 @@ services:
     command: redis-server --appendonly yes --requirepass "redis123"
     volumes:
       - ${DATA_PATH}/redis/data:/data
+      - /etc/localtime:/etc/localtime:ro
       
   #rabbitmq
   rabbitmq:
     hostname: rabbitmq
     build: ./rabbitmq
-    restart: always  
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: fanhualei 
+    volumes:
+      - /etc/localtime:/etc/localtime:ro    
 ```
 
 
@@ -606,7 +685,7 @@ date
 看看日期是否正确
 
 ```shell
-docker-compose exec  mysql  /bin/sh
+docker-compose exec  mysql  /bin/bash
 #看与宿主机是否一致
 date
 
@@ -627,7 +706,7 @@ mysql>show variables like '%time_zone%';
 登录到mysql中添加数据，在今后的过程中，再重新Up时候，看看数据是否保存下来
 
 ```shell
-docker-compose exec  mysql  /bin/sh
+docker-compose exec  mysql  mysql -uroot -pmysql@root
 
 #登录到mysql 
 
@@ -645,27 +724,76 @@ docker-compose exec  mysql  /bin/sh
 
 #### ③ 备份数据库
 
-- 定期
-- 不定期
+见 3.2.3章节的backup容器。
+
+#### ④ 批量导入数据
+
+见 3.2.2章节的backup容器。
+
+
+
+### 3.5.4 测试Redis
+
+
+
+#### ① 登录到redis中
 
 ```shell
-#在宿主机上，进入compose工程目录中，可以快速进入mysql
-docker-compose exec  mysql  mysql -uroot -pmysql@root
+# -a redis密码
+docker-compose exec redis redis-cli -a redis123
+```
+
+
+
+#### ② 进行一些基本操作
+
+```shell
+keys *
+set key1 "hello"
+get key1
+set key2 1
+INCR key2
+get key2
+```
+
+
+
+```
+登录redis即获得帮助
+    redis-cli
+    help    
+基本使用命令
+    查看所有的key列表  keys *
+    增加一条记录key1  set key1 "hello"
+    得到数据         get key1
+    增加一条数字记录  set key2 1
+    让数字自增       INCR key2
+    删除一个        del key1   
+    删除所有数据     flushall
+```
+
+
+
+#### ③ 测试持久化
+
+删除容器后重启，发现以前的数据都还在
+
+```shell
+docker-compose down
+docker-compose up -d
+docker-compose exec redis redis-cli -a redis123
+127.0.0.1:6379>  get key1
 ```
 
 
 
 
 
+### 3.5.5 测试rabbitmq
+
+[参考文档](https://github.com/fanhualei/wukong-framework/blob/master/reference/mq.md)
 
 
-
-
-#### ④ 批量导入数据
-
-* 初始化脚本
-
-  
 
 
 

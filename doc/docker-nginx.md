@@ -2,6 +2,14 @@
 
 
 
+推荐使用compose方法
+
+
+
+
+
+
+
 # 1. 快速使用
 
 有时候要练习一个docker命令或者k8s时，就简单的使用一下。但是在正式环境中，应该安装nginx的正式版
@@ -230,6 +238,8 @@ docker exec -it my-nginx nginx -s reload
 
 ```
 curl "http://my-tomcat" -x 127.0.0.1
+curl "http://my-tomcat" -x 172.25.0.2
+
 ```
 
 

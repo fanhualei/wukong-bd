@@ -1,0 +1,17 @@
+
+
+version: '3'
+services:
+
+  nginx:
+    hostname: nginx
+    build: ./nginx
+    restart: always
+    network_mode: host
+    volumes:
+      - /data/my-nginx/nginx/www/:/usr/share/nginx/html/
+      - /data/my-nginx/nginx/logs/:/var/log/nginx/
+      - /data/my-nginx/nginx/myconf/:/etc/nginx/myconf/
+      - /etc/localtime:/etc/localtime:ro
+
+

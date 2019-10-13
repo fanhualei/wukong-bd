@@ -604,6 +604,10 @@ services:
 
 
 
+
+
+
+
 ## 3.4 生成容器
 
 ```shell
@@ -933,35 +937,241 @@ docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabb
 
 ## 3.6 集成测试
 
-> 测试的主要内容
-
-* 内部集成
-  * 内部 Tomcat Redis Mysql rabbitMq联通
-* Nginx集成
-  * 方向代理Tomcat
-    * Https解析
-    * WebSocket
-  * 反向代理RabbitMq
-
-### ①  容器内部集成
+内部 Tomcat Redis Mysql rabbitMq联通
 
 上面已经测试过，`backup` 可以连通`mysql` 。 `mosquitto` 可以连通`rabbitmq`
 
-下面就不进行实际的测试了。
-
-
-
-### ② Nginx 反向代理tomcat
-
-
-
-### ③ Nginx 反向Https
 
 
 
 
+## 3.7 Nginx反向代理
 
-## 3.7 压力测试
+Nginx集成
+
+- 方向代理Tomcat
+  - Https解析
+  - WebSocket
+- 反向代理RabbitMq
+
+
+
+### 3.7.0 常见问题
+
+方向代理不成功
+
+1：没有将nginx设置成host模式
+
+2：没有将80 443 端口的权限给开放。
+
+
+
+```shell
+# 添加指定需要开放的端口：
+firewall-cmd --add-port=80/tcp --permanent
+# 重载入添加的端口：
+firewall-cmd --reload
+# 查询指定端口是否开启成功：
+firewall-cmd --query-port=80/tcp
+```
+
+
+
+
+
+### 3.7.1 新建Nginx工程
+
+
+
+#### ① 建立工作目录
+
+```shell
+mkdir -p /opt/my-nginx
+cd /opt/my-nginx
+```
+
+
+
+#### ②  创建Dockerfile文件
+
+```
+mdir nginx
+cd ./nginx
+```
+
+
+
+> 创建一个`createConf.sh` 文件
+
+```shell
+# 运行一个环境，来复制默认的conf文件,然后删除
+docker run --name my-nginx-temp  -d nginx:alpine 
+docker cp my-nginx-temp:/etc/nginx/nginx.conf ./ 
+docker rm -f my-nginx-temp ;
+
+lineNum=$(grep -nr 'include /etc/nginx/conf.d/\*.conf;'  ./nginx.conf  | awk -F ':' '{print $1}') 
+numi=${lineNum}i 
+sed -i ${numi}"include /etc/nginx/myconf/*.conf;" ./nginx.conf 
+sed -i ${numi}"server_tokens off;" ./nginx.conf 
+```
+
+
+
+```shell
+# 执行这个脚本生成一个 nginx.conf，去掉nginx的版本信息，为了安全
+chmod +x createConf.sh
+./createConf.sh
+```
+
+
+
+> 创建Dockerfile文件
+
+```dockerfile
+#备份镜像
+FROM nginx:alpine
+
+#替换脚本
+COPY nginx.conf    /etc/nginx/nginx.conf
+```
+
+
+
+#### ③ 编写comfose文件
+
+
+
+```shell
+vi docker-compose.yml
+```
+
+
+
+```yml
+version: '3'
+services:
+
+  nginx:
+    hostname: nginx
+    build: ./nginx
+    restart: always
+    # 此处一定要使用host，不然反向代理不通
+    network_mode: host   
+    volumes:
+      - /data/my-nginx/nginx/www/:/usr/share/nginx/html/
+      - /data/my-nginx/nginx/logs/:/var/log/nginx/
+      # 自己可以添加nginx的配置文件
+      - /data/my-nginx/nginx/myconf/:/etc/nginx/myconf/
+      - /etc/localtime:/etc/localtime:ro
+```
+
+
+
+#### ④  生成容器
+
+```shell
+docker-compose up -d
+```
+
+
+
+#### ⑤ 测试
+
+生成一个测试文件
+
+```
+echo hello world $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx/nginx/www/index.html
+```
+
+
+
+- 在浏览器中访问
+  - http://192.168.1.179/
+
+
+
+### 3.7.2 反向代理tomcat
+
+
+
+#### ① 确认tomcat可以访问
+
+确认tomcat的端口映射到了服务器。
+
+> 打开这个网址，看看能不能访问到
+
+http://192.168.1.179:21080
+
+
+
+
+
+#### ②  撰写反向代理文件
+
+新撰写的文件应该放到`myconf`目录中 。
+
+```shell
+vi /data/my-nginx/nginx/myconf/my-tomcat.conf
+```
+
+
+
+> my-tomcat.conf 文件
+
+```xml
+server {
+  listen 80;
+  #这个需要修改
+  server_name my-tomcat;
+  server_tokens off;
+  ## Don't show the nginx version number, a security best practice
+
+  location / {
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_set_header   Host      $http_host;
+    #这个需要修改
+    proxy_pass  http://192.168.1.179:21080;
+  }
+}
+```
+
+
+
+#### ③  其重启nginx的配置
+
+重启nginx配置
+
+```shell
+# 一般要执行下面文件，检查以下
+docker-compose exec nginx nginx -t
+
+# 然后再执行配置文件
+docker-compose exec nginx nginx -s reload
+```
+
+
+
+#### ④  查看是否可以访问
+
+配置本地的`hosts`文件，将my-tomcat指向ip地址`192.168.1.179`
+
+
+
+> 打开这个网址，看看能不能访问到
+
+http://my-tomcat/
+
+
+
+#### ⑤ Https反向代理
+
+
+
+
+
+
+
+## 3.8 压力测试
 
 
 

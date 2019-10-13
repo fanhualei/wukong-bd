@@ -1137,7 +1137,7 @@ server {
 
 
 
-#### ③  其重启nginx的配置
+#### ③  重启nginx
 
 重启nginx配置
 
@@ -1163,11 +1163,98 @@ http://my-tomcat/
 
 
 
-#### ⑤ Https反向代理
+### 3.7.3 反向代理tomcat-Https
 
 
 
+#### ① 得到Https证书
 
+在阿里云得到证书文件，并放到指定文件夹`ss-cert`中
+
+
+
+#### ②  撰写反向代理文件
+
+新撰写的文件应该放到`myconf`目录中 。
+
+```shell
+vi /data/my-nginx/nginx/myconf/my-tomcat-https.conf
+```
+
+
+
+> my-tomcat-https.conf 文件
+
+```xml
+server {
+  listen 443 ssl;
+
+  server_name ss.runzhichina.com;
+  server_tokens off;
+
+  # ssl on;
+  root html;
+  index index.html index.htm;
+  ssl_certificate   /etc/nginx/myconf/ss-cert/1893036_ss.runzhichina.com.pem;
+  ssl_certificate_key  /etc/nginx/myconf/ss-cert/1893036_ss.runzhichina.com.key;
+  ssl_session_timeout 5m;
+  ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  ssl_prefer_server_ciphers on;
+
+  location / {
+
+    # 下面代码是用来通过80端口访问的 21080
+     proxy_set_header   X-Real-IP $remote_addr;
+     proxy_set_header   Host      $http_host;
+     proxy_pass  http://127.0.0.1:21080;
+
+    # 下面是websocket配置
+     proxy_http_version 1.1;
+     proxy_set_header Upgrade $http_upgrade;
+     proxy_set_header Connection "upgrade";
+   
+   }
+
+}
+
+```
+
+
+
+#### ③  重启nginx
+
+
+
+重启nginx配置
+
+```shell
+# 一般要执行下面文件，检查以下
+docker-compose exec nginx nginx -t
+
+# 然后再执行配置文件
+docker-compose exec nginx nginx -s reload
+```
+
+
+
+#### ④  查看是否可以访问
+
+确认tomcat的端口映射到了服务器。
+
+配置本地的`hosts`文件，将`ss.runzhichina.com`指向ip地址`192.168.1.179`
+
+
+
+> 打开这个网址，看看能不能访问到
+
+https://ss.runzhichina.com/
+
+![alt](imgs/docker-compose-nginx-https.png)
+
+
+
+**如果不能访问**，请看看`443`端口是否打开
 
 
 

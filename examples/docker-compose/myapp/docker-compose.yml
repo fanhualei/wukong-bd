@@ -62,6 +62,7 @@ services:
       - ${DATA_PATH}/redis/data:/data
       - /etc/localtime:/etc/localtime:ro
       
+     
   #rabbitmq
   rabbitmq:
     hostname: rabbitmq
@@ -69,14 +70,29 @@ services:
     restart: always
     environment:
       RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: fanhualei 
+      RABBITMQ_DEFAULT_PASS: fanhualei
+
+      RABBITMQ_SSL_CACERTFILE: /cert/ca_certificate.pem
+      RABBITMQ_SSL_CERTFILE: /cert/server_certificate.pem
+      RABBITMQ_SSL_KEYFILE: /cert/server_key.pem
+      #客户端不需要带证书
+      RABBITMQ_SSL_FAIL_IF_NO_PEER_CERT: 'false'
+      RABBITMQ_SSL_VERIFY: 'verify_none'
+
+
+
+
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${DATA_PATH}/rabbitmq/data:/var/lib/rabbitmq
     ports:
       - "15672:15672"
-      
-      
+      - "15671:15671"
+      - "1883:1883"
+      - "8883:8883"
+
+
+ 
   #mosquitto 主要是为了测试 rabbitmq的客户端
   mosquitto:
     hostname: mosquitto

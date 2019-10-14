@@ -1,0 +1,70 @@
+
+[ ca ]
+default_ca = testca
+
+[ testca ]
+
+dir = .
+#存放CA证书文件
+certificate = $dir/ca_certificate.pem
+
+#Openssl定义的用于以签发证书的文本数据库文件
+database = $dir/index.txt
+
+#存放CA指令签发生成新证书的目录
+new_certs_dir = $dir/certs
+
+#存放CA私钥的文件
+private_key = $dir/private/ca_private_key.pem
+
+
+serial = $dir/serial
+
+#从当前CRL到下次CRL发布以天为单位的时间间隔 CRL证书作废
+default_crl_days = 7
+#签发证书的有效期，以天为单位
+default_days = 365
+default_md = sha256
+
+#该字段的策略决定CA要求和处理证书请求提供的DN域各个参数值的规则
+policy = testca_policy
+#指定了生成自签名证书时要使用的证书扩展项字段
+x509_extensions = certificate_extensions
+
+
+[ testca_policy ]
+commonName = supplied
+stateOrProvinceName = optional
+countryName = optional
+emailAddress = optional
+organizationName = optional
+organizationalUnitName = optional
+domainComponent = optional
+
+[ certificate_extensions ]
+basicConstraints = CA:false
+
+[ req ]
+default_bits = 2048
+default_keyfile = ./private/ca_private_key.pem
+default_md = sha256
+prompt = yes
+distinguished_name = root_ca_distinguished_name
+x509_extensions = root_ca_extensions
+
+[ root_ca_distinguished_name ]
+commonName = hostname
+
+[ root_ca_extensions ]
+basicConstraints = CA:true
+keyUsage = keyCertSign, cRLSign
+
+[ client_ca_extensions ]
+basicConstraints = CA:false
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = 1.3.6.1.5.5.7.3.2
+
+[ server_ca_extensions ]
+basicConstraints = CA:false
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = 1.3.6.1.5.5.7.3.1

@@ -592,6 +592,7 @@ services:
       - ${DATA_PATH}/rabbitmq/data:/var/lib/rabbitmq
     ports:
       - "15672:15672"
+      - "31883:1883"
       
       
   #mosquitto 主要是为了测试 rabbitmq的客户端
@@ -945,7 +946,7 @@ docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabb
 
 
 
-## 3.7 Nginx反向代理
+## 3.7 Nginx反向代理Tomcat
 
 Nginx集成
 
@@ -1090,7 +1091,7 @@ echo hello world $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx/nginx/www/index.ht
 
 
 
-### 3.7.2 反向代理tomcat
+### 3.7.2 反向代理80端口
 
 
 
@@ -1163,7 +1164,7 @@ http://my-tomcat/
 
 
 
-### 3.7.3 反向代理tomcat-Https
+### 3.7.3 反向代理443端口
 
 
 
@@ -1258,7 +1259,556 @@ https://ss.runzhichina.com/
 
 
 
-## 3.8 压力测试
+## 3.8 Nginx反向代理RabbitMq
+
+Nginx反向代理tomcat的好处有两个：
+
+* 是可以简化SSL配置，tomcat不用配置SSL
+* 使用域名来解析到不同的tomcat端口上。
+
+
+
+但是不推荐使用Nignx反向代理RabbitMq，原因：
+
+* 使用了Docker后，可以直接将端口开发到服务器上的端口中。
+* 还没有找到通过Nginx把SSL简化掉，直接代理到RabbitMq非SSL接口。
+
+
+
+> 下面简单说明以下如何进行代理。
+
+
+
+### ①  将Mqtt端口映射到宿主机
+
+`1883 `映射到宿主机 `31883`
+
+
+
+### ②  在nginx.conf配置stream代理
+
+添加了`stream`这一章节
+
+```xml
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+stream {
+    server {
+        listen 1883;
+        proxy_connect_timeout 3s;
+        proxy_timeout 525600m;    
+        proxy_pass 192.168.1.179:31883;
+        }                          
+}       
+
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+server_tokens off;
+include /etc/nginx/myconf/*.conf;
+    include /etc/nginx/conf.d/*.conf;
+}
+
+```
+
+
+
+
+
+### ③  开放1833防火墙端口
+
+一定要重启防火墙，并看到这个端口开发了。
+
+```shell
+# 添加指定需要开放的端口：
+firewall-cmd --add-port=1883/tcp --permanent
+# 重载入添加的端口：
+firewall-cmd --reload
+# 查询指定端口是否开启成功：
+firewall-cmd --query-port=1883/tcp
+```
+
+
+
+
+
+### ④  使用MQTTfx进行测试
+
+按照正常的配置方法进行测试就可以了。
+
+
+
+
+
+
+
+## 3.9 RabbitMq启动SSL
+
+主要想反向代理RabbitMq的Https的Mqtt服务
+
+
+
+### 3.9.1 基本概念
+
+
+
+以下是与TLS相关的基本配置设置：
+
+| 配置键                           | 描述                                                         |
+| -------------------------------- | ------------------------------------------------------------ |
+| listeners.ssl                    | 侦听TLS连接的端口列表。RabbitMQ可以侦听[单个接口或多个接口](https://www.rabbitmq.com/networking.html)。 |
+| ssl_options.cacertfile           | 证书颁发机构（CA）捆绑包文件路径                             |
+| ssl_options.certfile             | 服务器证书文件路径                                           |
+| ssl_options.keyfile              | 服务器私钥文件路径                                           |
+| ssl_options.verify               | 是否应该启用[对等验证](https://www.rabbitmq.com/ssl.html#peer-verification)？ |
+| ssl_options.fail_if_no_peer_cert | 设置为true时，如果客户端无法提供证书，则TLS连接将被拒绝      |
+
+
+
+
+
+### 3.9.2 安装MQTTfx  
+
+> 参考了:[阿里-使用MQTT.fx接入物联网平台](https://www.alibabacloud.com/help/zh/doc-detail/86706.htm)
+
+
+
+下载并安装MQTT.fx软件。请访问[MQTT.fx官网](https://mqttfx.jensd.de/index.php/download)。
+
+
+
+
+
+### 3.9.3 测试直连Mqtt服务
+
+
+
+#### ①  将Mqtt端口映射到宿主机
+
+`1883 8883`映射到宿足机
+
+
+
+#### ② 防火墙开放端口
+
+```shell
+# 添加指定需要开放的端口：
+firewall-cmd --add-port=1883/tcp --permanent
+# 重载入添加的端口：
+firewall-cmd --reload
+# 查询指定端口是否开启成功：
+firewall-cmd --query-port=1883/tcp
+```
+
+
+
+#### ③  进行测试
+
+在MQTTfx中配置，并进行测试，这里一定要设置`用户名与密码`
+
+![alt](imgs/docker-compose-mqtt-connect1.png)
+
+
+
+### 3.9.4 配置SSL单向认证服务
+
+
+
+#### ① 得到证书
+
+有两种方法：
+
+* 手动生成CA，证书和私钥
+* 自动生成CA，证书和私钥
+  * 参考这个文档[RabbitMQ指南（七） SSL\TLS通信](https://blog.csdn.net/weixin_43533358/article/details/83792038)
+
+
+
+最终需要4个文件：
+
+| rabbitmq的Key          | 文件名                 | 说明                       |
+| ---------------------- | ---------------------- | -------------------------- |
+| ssl_options.cacertfile | ca_certificate.pem     | CA证书文件                 |
+| ssl_options.certfile   | server_certificate.pem | 服务端证书文件             |
+| ssl_options.keyfile    | server_key.pem         | 服务端私钥文件             |
+| 无                     | client_key.p12         | 客户端证书文件，用于客户端 |
+
+
+
+#### ②  配置Dockerfile
+
+地址rabbitmq的Dockerfile文件
+
+```dockerfile
+#带有管理界面的rabbitmq
+FROM rabbitmq:3.8.0-management-alpine
+# 启动mqtt插件
+RUN rabbitmq-plugins enable --offline rabbitmq_mqtt
+
+COPY ./manually/testca/ca_certificate.pem /cert/ca_certificate.pem
+COPY ./manually/server/server_certificate.pem /cert/server_certificate.pem
+COPY ./manually/server/private_key.pem /cert/server_key.pem
+```
+
+
+
+
+
+#### ③  配置Compose文件
+
+地址rabbitmq的Dockerfile文件
+
+```yaml
+  #rabbitmq
+  rabbitmq:
+    hostname: rabbitmq
+    build: ./rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: fanhualei
+
+      RABBITMQ_SSL_CACERTFILE: /cert/ca_certificate.pem
+      RABBITMQ_SSL_CERTFILE: /cert/server_certificate.pem
+      RABBITMQ_SSL_KEYFILE: /cert/server_key.pem
+      #客户端不需要带证书
+      RABBITMQ_SSL_FAIL_IF_NO_PEER_CERT: 'false'
+      RABBITMQ_SSL_VERIFY: 'verify_none'
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DATA_PATH}/rabbitmq/data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+      - "15671:15671"
+      - "1883:1883"
+      - "8883:8883"
+```
+
+
+
+#### ④  生成镜像并再次配置
+
+这个镜像不包含Mqtt的SSL功能，所以要配置后重新启动。
+
+```shell
+docker-compose up -d
+
+# 登录到容器中，追加配置
+docker-compose exec rabbitmq ash
+>cd /etc/rabbitmq/
+# 追加mqtt.listeners.ssl.default
+>vi rabbitmq.conf
+
+# 重启容器
+docker-compose restart rabbitmq
+```
+
+
+
+> rabbitmq.conf
+
+```ini
+loopback_users.guest = false
+listeners.ssl.default = 5671
+ssl_options.cacertfile = /cert/ca_certificate.pem
+ssl_options.certfile = /cert/server_certificate.pem
+ssl_options.fail_if_no_peer_cert = false
+ssl_options.keyfile = /cert/server_key.pem
+ssl_options.verify = verify_none
+default_pass = fanhualei
+default_user = guest
+management.ssl.port = 15671
+management.ssl.cacertfile = /cert/ca_certificate.pem
+management.ssl.certfile = /cert/server_certificate.pem
+management.ssl.fail_if_no_peer_cert = false
+management.ssl.keyfile = /cert/server_key.pem
+management.ssl.verify = verify_none
+
+# 下面这一行是追加的。
+mqtt.listeners.ssl.default = 8883
+
+```
+
+
+
+#### ⑤ mqttfx使用证书连接
+
+通过这个配置连接服务器，并且发布一些数据
+
+![alt](imgs/rabbit-mqttfx-ssl-ok-setting.png)
+
+
+
+#### ⑥ 访问管理界面
+
+这次一定要使用https . 我认为管理界面的证书，可以单独使用，与mqtt的证书不同。
+
+地址rabbitmq的Dockerfile文件
+
+https://192.168.1.179:15671/
+
+![alt](imgs/rabbitmq-web-ssl-connected.png)
+
+
+
+
+
+
+
+### 参考资料
+
+* 网友的文档
+  * [安装Nginx,配置反向代理,打开微信小程序测试MQTT连接](https://www.bilibili.com/video/av70119734/)
+  * [RabbitMQ+Erlang+MQTT安装及配置](https://www.jianshu.com/p/9db463ab0ab0)
+* 官网
+  * [http://www.rabbitmq.com/mqtt.html](http://www.rabbitmq.com/mqtt.html)
+  * [http://www.rabbitmq.com/web-mqtt.html](http://www.rabbitmq.com/web-mqtt.html)
+
+
+
+
+
+### 3.9.5 配置SSL双向认证服务
+
+
+
+### 3.9.6 配置SSL双向认证服务
+
+
+
+
+
+
+
+
+
+
+
+## 3.10 证书制作过程
+
+[参考网址](https://www.rabbitmq.com/ssl.html#manual-certificate-generation):本指南的这一部分说明了如何生成证书颁发机构，并使用它来生成和签名两个证书/密钥对，一个用于服务器，一个用于客户端库。请注意，可以[使用](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)推荐的[现有工具](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)使该过程[自动化](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)。本部分适用于希望提高其对过程，OpenSSL命令行工具以及一些重要方面OpenSSL配置的了解的人员。
+
+
+
+![alt](imgs/rabbitmq-ca-create.png)
+
+
+
+### 3.10.1 证书颁发机构
+
+有时候，使用SSL协议是自己内部服务器使用的，这时可以不必去找第三方权威的CA机构做证书，可以做自签证书（自己创建root CA（非权威））主要有以下三个步骤。
+
+
+
+#### ①  创建工作目录
+
+为证书颁发机构创建一个目录
+
+```shell
+mkdir testca
+cd testca
+mkdir certs private
+chmod 700 private
+echo 01 > serial
+touch index.txt
+```
+
+
+
+#### ②  配置openssl.cnf文件
+
+现在，在新创建的`testca` 目录中添加以下OpenSSL配置文件`openssl.cnf`：
+
+[06.Openssl基本概念](https://www.cnblogs.com/aixiaoxiaoyu/p/8400036.html)
+
+
+
+```ini
+[ ca ]
+default_ca = testca
+
+[ testca ]
+
+dir = .
+#存放CA证书文件
+certificate = $dir/ca_certificate.pem
+
+#Openssl定义的用于以签发证书的文本数据库文件
+database = $dir/index.txt
+
+#存放CA指令签发生成新证书的目录
+new_certs_dir = $dir/certs
+
+#存放CA私钥的文件
+private_key = $dir/private/ca_private_key.pem
+
+
+serial = $dir/serial
+
+#从当前CRL到下次CRL发布以天为单位的时间间隔 CRL证书作废
+default_crl_days = 7
+#签发证书的有效期，以天为单位
+default_days = 365
+default_md = sha256
+
+#该字段的策略决定CA要求和处理证书请求提供的DN域各个参数值的规则
+policy = testca_policy
+#指定了生成自签名证书时要使用的证书扩展项字段
+x509_extensions = certificate_extensions
+
+
+[ testca_policy ]
+commonName = supplied
+stateOrProvinceName = optional
+countryName = optional
+emailAddress = optional
+organizationName = optional
+organizationalUnitName = optional
+domainComponent = optional
+
+[ certificate_extensions ]
+basicConstraints = CA:false
+
+[ req ]
+default_bits = 2048
+default_keyfile = ./private/ca_private_key.pem
+default_md = sha256
+prompt = yes
+distinguished_name = root_ca_distinguished_name
+x509_extensions = root_ca_extensions
+
+[ root_ca_distinguished_name ]
+commonName = hostname
+
+[ root_ca_extensions ]
+basicConstraints = CA:true
+keyUsage = keyCertSign, cRLSign
+
+[ client_ca_extensions ]
+basicConstraints = CA:false
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = 1.3.6.1.5.5.7.3.2
+
+[ server_ca_extensions ]
+basicConstraints = CA:false
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = 1.3.6.1.5.5.7.3.1
+```
+
+
+
+#### ③  生成密钥和证书
+
+接下来，我们需要生成测试证书颁发机构将使用的密钥和证书。仍在testca 目录中：
+
+```shell
+openssl req -x509 -config openssl.cnf -newkey rsa:2048 -days 365 \
+    -out ca_certificate.pem -outform PEM -subj /CN=MyTestCA/ -nodes
+
+#DER类型的格式，两者是一样的
+openssl x509 -in ca_certificate.pem -out ca_certificate.cer -outform DER
+```
+
+这是生成测试证书颁发机构所需的全部。根证书位于`ca_certificate.pem中` ，也位于`testca / ca_certificate.cer`中。这两个文件包含相同的信息，但格式不同，PEM和DER。大多数软件使用前者，但是某些工具需要后者。
+
+设置了证书颁发机构之后，我们现在需要为客户端和服务器生成私钥和证书。RabbitMQ代理使用PEM格式的证书和私钥。一些客户端库使用PEM格式，另一些则需要转换为其他格式（例如PKCS＃12）。
+
+Java和.NET客户端使用称为PKCS＃12的证书格式和自定义证书存储。证书库包含客户端的证书和密钥。PKCS存储区通常受密码保护，因此必须提供密码。
+
+
+
+### 3.10.2 服务器端
+
+获取权威机构颁发的证书，
+
+* 需要先得到私钥的key文件（.key）
+* 然后使用私钥的key文件生成sign req 文件（.csr）或 req.pem文件
+* 最后把csr文件发给权威机构，等待权威机构认证，认证成功后，会返回证书文件（.crt）。 
+
+```shell
+cd ..
+ls
+# => testca
+mkdir server
+cd server
+#首先：生成私钥
+openssl genrsa -out private_key.pem 2048
+#然后使用私钥的key文件生成sign req 文件（.csr）或 req.pem文件
+openssl req -new -key private_key.pem -out req.pem -outform PEM \
+    -subj /CN=$(hostname)/O=server/ -nodes
+
+#最后把csr文件(req.pem)发给权威机构，等待权威机构认证，认证成功后，会返回证书文件（.crt） 
+cd ../testca
+openssl ca -config openssl.cnf -in ../server/req.pem -out \
+    ../server/server_certificate.pem -notext -batch -extensions server_ca_extensions
+
+#Java和.NET客户端使用称为PKCS＃12的证书格式，这里进行转换
+cd ../server
+openssl pkcs12 -export -out server_certificate.p12 -in server_certificate.pem -inkey private_key.pem \
+    -passout pass:MySecretPassword
+```
+
+### 3.10.3 客户端
+
+原理同服务器端，因为要做双向认证，所以这里也需要生成
+
+```shell
+cd ..
+ls
+# => server testca
+mkdir client
+cd client
+#首先：生成私钥
+openssl genrsa -out private_key.pem 2048
+#然后使用私钥的key文件生成sign req 文件（.csr）或 req.pem文件
+openssl req -new -key private_key.pem -out req.pem -outform PEM \
+    -subj /CN=$(hostname)/O=client/ -nodes
+    
+#最后把csr文件(req.pem)发给权威机构，等待权威机构认证，认证成功后，会返回证书文件（.crt）     
+cd ../testca
+openssl ca -config openssl.cnf -in ../client/req.pem -out \
+    ../client/client_certificate.pem -notext -batch -extensions client_ca_extensions
+
+#Java和.NET客户端使用称为PKCS＃12的证书格式，这里进行转换
+cd ../client
+openssl pkcs12 -export -out client_certificate.p12 -in client_certificate.pem -inkey private_key.pem \
+    -passout pass:MySecretPassword
+```
+
+
+
+
+
+
+
+
+
+## 3.11 压力测试
 
 
 

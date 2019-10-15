@@ -10,6 +10,10 @@
 
 # 1. 部署架构
 
+[本文文档的代码在这里可以找到](https://github.com/fanhualei/wukong-bd/tree/master/examples/docker-compose)
+
+
+
 ![alt](imgs/docker-compose-exa-jiagou.png)
 
 
@@ -219,6 +223,8 @@ COPY server.xml /usr/local/tomcat/conf
 
 
 ### 3.2.2 Mysql
+
+Mysql 直接使用官方的镜像就可以了，这里只给出导入导出的示例
 
 官网给出了示例代码
 
@@ -477,8 +483,6 @@ RabbitMQ 已经有一些自带管理插件的镜像。用这些镜像创建的�
 
 
 
-
-
 - `4369` (epmd), `25672` (Erlang distribution)
 - `5672` 是amqp默认端口 , `5671` (AMQP 0-9-1 without and with TLS)
 - `15672` (if management plugin is enabled) 是rabbitmq management管理界面默认访问端口
@@ -497,8 +501,6 @@ RabbitMQ 已经有一些自带管理插件的镜像。用这些镜像创建的�
 - [Docker安装RabbitMQ配置MQTT](https://blog.csdn.net/hololens/article/details/80059991)
 - [Docker 部署 RabbitMQ 集群](https://www.jianshu.com/p/52546bcf8723?utm_source=oschina-app)
 - [RabbitMQ的简单使用](https://blog.csdn.net/wangbing25307/article/details/80845641)
-
-
 
 
 
@@ -1268,10 +1270,14 @@ Nginx反向代理tomcat的好处有两个：
 
 
 
-但是不推荐使用Nignx反向代理RabbitMq，原因：
+Nignx反向代理RabbitMq：
 
-* 使用了Docker后，可以直接将端口开发到服务器上的端口中。
-* 还没有找到通过Nginx把SSL简化掉，直接代理到RabbitMq非SSL接口。
+* 不用在RabbitMq中配置SSL了，这样内部链接时，效率更高。
+* Nignx学习成本低，学会了，今后可以应用到Mysql等其他工具的反向代理中。
+
+
+
+### 3.8.1 无SSL反向代理
 
 
 
@@ -1279,13 +1285,30 @@ Nginx反向代理tomcat的好处有两个：
 
 
 
-### ①  将Mqtt端口映射到宿主机
+#### ①  将Mqtt端口映射到宿主机
 
 `1883 `映射到宿主机 `31883`
 
+```yml
+  #rabbitmq
+  rabbitmq:
+    hostname: rabbitmq
+    build: ./rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: fanhualei 
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DATA_PATH}/rabbitmq/data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+      - "31883:1883"
+```
 
 
-### ②  在nginx.conf配置stream代理
+
+#### ②  在nginx.conf配置stream代理
 
 添加了`stream`这一章节
 
@@ -1339,7 +1362,7 @@ include /etc/nginx/myconf/*.conf;
 
 
 
-### ③  开放1833防火墙端口
+#### ③  开放1833防火墙端口
 
 一定要重启防火墙，并看到这个端口开发了。
 
@@ -1356,7 +1379,7 @@ firewall-cmd --query-port=1883/tcp
 
 
 
-### ④  使用MQTTfx进行测试
+#### ④  使用MQTTfx进行测试
 
 按照正常的配置方法进行测试就可以了。
 
@@ -1364,11 +1387,355 @@ firewall-cmd --query-port=1883/tcp
 
 
 
+### 3.8.2 单向SSL反向代理
+
+#### ①  将Mqtt端口映射到宿主机
+
+`1883 `映射到宿主机 `31883`  ，使用`up -d`重新生成 rabbitmq
+
+```yml
+  #rabbitmq
+  rabbitmq:
+    hostname: rabbitmq
+    build: ./rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: fanhualei 
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${DATA_PATH}/rabbitmq/data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+      - "31883:1883"
+```
+
+*小技巧：如果在最后测试过程中，发现反向代理不能访问，那么就返回每一步，看看具体那个地方出错了。*
+
+*这步可以用：直连31883的mqtt服务，以及使用：http://192.168.1.179:15672 访问服务*
 
 
-## 3.9 RabbitMq启动SSL
 
-主要想反向代理RabbitMq的Https的Mqtt服务
+#### ②  复制证书到nginx中
+
+证书制作过程，见3.10
+
+```shell
+mkdir /data/my-nginx/nginx/myconf/rabbitmq-cert
+
+cd /opt/myapp/rabbitmq
+cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/ca_certificate.pem
+
+cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_certificate.pem
+
+cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_key.pem
+
+
+
+```
+
+
+
+#### ③  在nginx.conf配置stream代理
+
+
+
+```shell
+docker-compose exec nginx ash
+>cd /etc/nginx/
+>vi nginx.conf
+```
+
+
+
+添加了`stream`这一章节
+
+```ini
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+stream {
+    server {
+        listen 1883;
+        proxy_connect_timeout 3s;
+        proxy_timeout 525600m;    
+        proxy_pass 192.168.1.179:31883;
+     }
+        
+    server {
+  		listen 8883 ssl;
+  		proxy_connect_timeout 3s;
+  		proxy_timeout 525600m;    
+        proxy_pass 192.168.1.179:31883;
+  		
+  		
+  		ssl_certificate      /etc/nginx/myconf/rabbitmq-cert/server_certificate.pem;
+  		ssl_certificate_key  /etc/nginx/myconf/rabbitmq-cert/server_key.pem;
+  		ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
+  		ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  		ssl_prefer_server_ciphers on;
+  
+     }       
+}       
+
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+server_tokens off;
+include /etc/nginx/myconf/*.conf;
+    include /etc/nginx/conf.d/*.conf;
+}
+
+```
+
+
+
+* `ssl_prefer_server_ciphers   on;`
+  * //依赖SSLv3和TLSv1协议的服务器密码将优先于客户端密码
+* `ssl_ciphers`
+  * 密码加密方式
+* `ssl_protocols`
+  * 指定密码为openssl支持的格式
+
+
+
+#### ④  重启nginx
+
+
+
+重启nginx配置
+
+```shell
+# 一般要执行下面文件，检查以下
+docker-compose exec nginx nginx -t
+
+# 然后再执行配置文件
+docker-compose exec nginx nginx -s reload
+```
+
+
+
+#### ⑤ 使用MQTTfx进行测试
+
+按照正常的配置方法进行测试就可以了。由于nginx方向带了1883与8883两个端口，所以可以用`非SSL`与`SSL`进行连接。
+
+> 下面只显示了用SSL连接的配置
+
+![alt](imgs/rabbit-mqttfx-ssl-ok-setting.png)
+
+
+
+
+
+### 3.8.3 双向SSL反向代理
+
+#### ①  将Mqtt端口映射到宿主机
+
+`1883 `映射到宿主机 `31883`  ，使用`up -d`重新生成 rabbitmq
+
+配置与【单向SSL反向代理】一样。
+
+
+
+
+
+#### ②  复制证书到nginx中
+
+证书制作过程，见3.10
+
+【双向方向代理】与【单向方向代理】唯一的不同是：多了一个`ca_certificate.pem`
+
+
+
+```shell
+mkdir /data/my-nginx/nginx/myconf/rabbitmq-cert
+
+cd /opt/myapp/rabbitmq
+cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/ca_certificate.pem
+
+cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_certificate.pem
+
+cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_key.pem
+```
+
+
+
+#### ③  在nginx.conf配置stream代理
+
+【双向方向代理】与【单向方向代理】唯一的不同是：多了一个`ca_certificate.pem`
+
+```shell
+docker-compose exec nginx ash
+>cd /etc/nginx/
+>vi nginx.conf
+```
+
+
+
+添加了`stream`这一章节
+
+```ini
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+stream {
+    server {
+        listen 1883;
+        proxy_connect_timeout 3s;
+        proxy_timeout 525600m;    
+        proxy_pass 192.168.1.179:31883;
+     }
+        
+    server {
+  		listen 8883 ssl;
+  		proxy_connect_timeout 3s;
+  		proxy_timeout 525600m;    
+        proxy_pass 192.168.1.179:31883;
+  		
+  		
+  		ssl_certificate      /etc/nginx/myconf/rabbitmq-cert/server_certificate.pem;
+  		ssl_certificate_key  /etc/nginx/myconf/rabbitmq-cert/server_key.pem;
+  		ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
+  		ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  		ssl_prefer_server_ciphers on;
+  		
+  		# 开启客户端验证，由于客户端是用ca.crt来签证的
+  		ssl_verify_client on;
+  		ssl_client_certificate /etc/nginx/myconf/rabbitmq-cert/ca_certificate.pem;
+  
+     }       
+}       
+
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+server_tokens off;
+include /etc/nginx/myconf/*.conf;
+    include /etc/nginx/conf.d/*.conf;
+}
+
+```
+
+
+
+- `ssl_prefer_server_ciphers   on;`
+  - //依赖SSLv3和TLSv1协议的服务器密码将优先于客户端密码
+- `ssl_ciphers`
+  - 密码加密方式
+- `ssl_protocols`
+  - 指定密码为openssl支持的格式
+
+
+
+#### ④  重启nginx
+
+
+
+重启nginx配置
+
+```shell
+# 一般要执行下面文件，检查以下
+docker-compose exec nginx nginx -t
+
+# 然后再执行配置文件
+docker-compose exec nginx nginx -s reload
+```
+
+
+
+#### ⑤ 使用MQTTfx进行测试
+
+按照正常的配置方法进行测试就可以了。由于nginx方向带了1883与8883两个端口，所以可以用`非SSL`与`SSL`进行连接。
+
+【双向方向代理】与【单向方向代理】唯一的不同是：客户端需要向服务器提交：证书+私钥
+
+> 下面只显示了用SSL连接的配置
+
+![alt](imgs/rabbitmq-ssl-verify-client-setting.png)
+
+
+
+
+
+
+
+### 3.8.4 证书注销
+
+这个章节内容今后会补充完整。
+
+如果发现证书泄露，那么可以注销证书，具体步骤如下
+
+#### ①  OpenSSL 注销证书
+
+[证书介绍及openssl生成证书和吊销列表](https://blog.csdn.net/xmayyang/article/details/52815446)
+
+#### ②  Nginx中进行配置
+
+添加：
+
+```
+ssl_crl                     /home/ubu/openssl_ocsp_test/root-ca/all-revoked.crl;
+```
+
+
+
+然后重启nginx
+
+
+
+
+
+## 3.9 RabbitMq启动SSL（参考）
+
+可以启动Nginx的SSL功能，来反向代理没有SSL的RabbitMq。
+
+这里只是列出了一个测试的方法，具体实践中，可以使用Nginx来执行。
 
 
 
@@ -1580,24 +1947,22 @@ https://192.168.1.179:15671/
 
 
 
-### 参考资料
-
-* 网友的文档
-  * [安装Nginx,配置反向代理,打开微信小程序测试MQTT连接](https://www.bilibili.com/video/av70119734/)
-  * [RabbitMQ+Erlang+MQTT安装及配置](https://www.jianshu.com/p/9db463ab0ab0)
-* 官网
-  * [http://www.rabbitmq.com/mqtt.html](http://www.rabbitmq.com/mqtt.html)
-  * [http://www.rabbitmq.com/web-mqtt.html](http://www.rabbitmq.com/web-mqtt.html)
-
-
-
 
 
 ### 3.9.5 配置SSL双向认证服务
 
+略
 
 
-### 3.9.6 配置SSL双向认证服务
+
+### 参考资料
+
+- 网友的文档
+  - [安装Nginx,配置反向代理,打开微信小程序测试MQTT连接](https://www.bilibili.com/video/av70119734/)
+  - [RabbitMQ+Erlang+MQTT安装及配置](https://www.jianshu.com/p/9db463ab0ab0)
+- 官网
+  - [http://www.rabbitmq.com/mqtt.html](http://www.rabbitmq.com/mqtt.html)
+  - [http://www.rabbitmq.com/web-mqtt.html](http://www.rabbitmq.com/web-mqtt.html)
 
 
 

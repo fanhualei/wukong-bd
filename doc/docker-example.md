@@ -934,7 +934,11 @@ docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabb
 
 
 
-## 3.6 建立Nginx工程
+## 4. Nginx反向代理
+
+
+
+## 4.1 建立Nginx工程
 
 这个工程主要用来做反向代理，主要预留的功能有：
 
@@ -1131,7 +1135,7 @@ echo hello world $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx/nginx/www/index.ht
 
 
 
-## 3.7 Nginx反向代理Tomcat
+## 4.2 Nginx反向代理Tomcat
 
 Nginx集成
 
@@ -1148,7 +1152,7 @@ Nginx反向代理tomcat的好处有两个：
 
 
 
-### 3.7.1 常见问题
+### 4.2.1 常见问题
 
 方向代理不成功
 
@@ -1169,7 +1173,7 @@ firewall-cmd --query-port=80/tcp
 
 
 
-### 3.7.2 反向代理80端口
+### 4.2.2 反向代理80端口
 
 
 
@@ -1240,7 +1244,7 @@ http://my-tomcat/
 
 
 
-### 3.7.3 反向代理443端口
+### 4.2.3 反向代理443端口
 
 
 
@@ -1342,7 +1346,7 @@ https://ss.runzhichina.com/
 
 
 
-## 3.8 Nginx反向代理RabbitMq
+## 4.3 Nginx反向代理RabbitMq
 
 
 
@@ -1353,7 +1357,7 @@ Nignx反向代理RabbitMq：
 
 
 
-### 3.8.1 无SSL反向代理
+### 4.3.1 无SSL反向代理
 
 
 
@@ -1442,7 +1446,7 @@ docker-compose exec nginx nginx -s reload
 
 
 
-### 3.8.2 单向SSL反向代理
+### 4.3.2 单向SSL反向代理
 
 #### ①  将Mqtt端口映射到宿主机
 
@@ -1583,7 +1587,7 @@ firewall-cmd --query-port=8883/tcp
 
 
 
-### 3.8.3 双向SSL反向代理
+### 4.3.3 双向SSL反向代理
 
 #### ①  将Mqtt端口映射到宿主机
 
@@ -1704,7 +1708,7 @@ firewall-cmd --query-port=8884/tcp
 
 
 
-### 3.8.4 证书注销
+### 4.3.4 证书注销
 
 这个章节内容今后会补充完整。
 
@@ -1730,7 +1734,7 @@ ssl_crl                     /home/ubu/openssl_ocsp_test/root-ca/all-revoked.crl;
 
 
 
-## 3.9 RabbitMq启动SSL（参考）
+# 5 RabbitMq启动SSL（选看）
 
 可以启动Nginx的SSL功能，来反向代理没有SSL的RabbitMq。
 
@@ -1738,7 +1742,7 @@ ssl_crl                     /home/ubu/openssl_ocsp_test/root-ca/all-revoked.crl;
 
 
 
-### 3.9.1 基本概念
+## 5.1 基本概念
 
 
 
@@ -1757,7 +1761,7 @@ ssl_crl                     /home/ubu/openssl_ocsp_test/root-ca/all-revoked.crl;
 
 
 
-### 3.9.2 安装MQTTfx  
+## 5.2 安装MQTTfx  
 
 > 参考了:[阿里-使用MQTT.fx接入物联网平台](https://www.alibabacloud.com/help/zh/doc-detail/86706.htm)
 
@@ -1769,17 +1773,17 @@ ssl_crl                     /home/ubu/openssl_ocsp_test/root-ca/all-revoked.crl;
 
 
 
-### 3.9.3 测试直连Mqtt服务
+## 5.3 测试直连Mqtt服务
 
 
 
-#### ①  将Mqtt端口映射到宿主机
+### ①  将Mqtt端口映射到宿主机
 
 `1883 8883`映射到宿足机
 
 
 
-#### ② 防火墙开放端口
+### ② 防火墙开放端口
 
 ```shell
 # 添加指定需要开放的端口：
@@ -1792,7 +1796,7 @@ firewall-cmd --query-port=1883/tcp
 
 
 
-#### ③  进行测试
+### ③  进行测试
 
 在MQTTfx中配置，并进行测试，这里一定要设置`用户名与密码`
 
@@ -1800,11 +1804,11 @@ firewall-cmd --query-port=1883/tcp
 
 
 
-### 3.9.4 配置SSL单向认证服务
+## 5.4 配置SSL单向认证服务
 
 
 
-#### ① 得到证书
+### ① 得到证书
 
 有两种方法：
 
@@ -1825,7 +1829,7 @@ firewall-cmd --query-port=1883/tcp
 
 
 
-#### ②  配置Dockerfile
+### ②  配置Dockerfile
 
 地址rabbitmq的Dockerfile文件
 
@@ -1844,7 +1848,7 @@ COPY ./manually/server/private_key.pem /cert/server_key.pem
 
 
 
-#### ③  配置Compose文件
+### ③  配置Compose文件
 
 地址rabbitmq的Dockerfile文件
 
@@ -1877,7 +1881,7 @@ COPY ./manually/server/private_key.pem /cert/server_key.pem
 
 
 
-#### ④  生成镜像并再次配置
+### ④  生成镜像并再次配置
 
 这个镜像不包含Mqtt的SSL功能，所以要配置后重新启动。
 
@@ -1922,7 +1926,7 @@ mqtt.listeners.ssl.default = 8883
 
 
 
-#### ⑤ mqttfx使用证书连接
+### ⑤ mqttfx使用证书连接
 
 通过这个配置连接服务器，并且发布一些数据
 
@@ -1930,7 +1934,7 @@ mqtt.listeners.ssl.default = 8883
 
 
 
-#### ⑥ 访问管理界面
+### ⑥ 访问管理界面
 
 这次一定要使用https . 我认为管理界面的证书，可以单独使用，与mqtt的证书不同。
 
@@ -1948,13 +1952,13 @@ https://192.168.1.179:15671/
 
 
 
-### 3.9.5 配置SSL双向认证服务
+## 5.5 配置SSL双向认证服务
 
 略
 
 
 
-### 参考资料
+## 5.6 参考资料
 
 - 网友的文档
   - [安装Nginx,配置反向代理,打开微信小程序测试MQTT连接](https://www.bilibili.com/video/av70119734/)
@@ -1973,22 +1977,23 @@ https://192.168.1.179:15671/
 
 
 
-## 3.10 制作证书
+# 6 制作证书
 
 [参考网址](https://www.rabbitmq.com/ssl.html#manual-certificate-generation):本指南的这一部分说明了如何生成证书颁发机构，并使用它来生成和签名两个证书/密钥对，一个用于服务器，一个用于客户端库。请注意，可以[使用](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)推荐的[现有工具](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)使该过程[自动化](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)。
 
 
 
-### 3.10.1 使用tls-gen生成
+## 6.1 使用tls-gen生成
 
 参考文档
 
 * [RabbitMQ指南（七） SSL\TLS通信](https://blog.csdn.net/weixin_43533358/article/details/83792038)
 * [gitHub官方网址](https://github.com/michaelklishin/tls-gen)
+* [关于证书链的一点认知](https://www.jianshu.com/p/fcd0572c4765)
 
 
 
-#### 3.10.1.1 创建tls-gen镜像
+### 6.1.1 创建tls-gen镜像
 
 由于tls-gen 需要 `Python 3.5 or later  `  `openssl`  `make`  ，与我机器上的python 冲突
 
@@ -1996,7 +2001,7 @@ https://192.168.1.179:15671/
 
 
 
-##### ① 建立工程目录
+#### ① 建立工程目录
 
 ```shell
 mkdir -p /opt/my-tls-gen
@@ -2005,7 +2010,7 @@ cd /opt/my-tls-gen
 
 
 
-##### ②  创建Dockerfile文件
+#### ②  创建Dockerfile文件
 
 ```shell
 mkdir tls-gen
@@ -2034,7 +2039,7 @@ CMD ["/bin/sh","-c","while true; do sleep 3; done"]
 
 
 
-#####  ③  编写comfose文件
+####  ③  编写comfose文件
 
 ```shell
 # 到compose根目录
@@ -2058,7 +2063,7 @@ services:
 
 
 
-##### ④ 生成容器
+#### ④ 生成容器
 
 ```shell
 docker-compose up -d
@@ -2066,7 +2071,7 @@ docker-compose up -d
 
 *生成过程，提示没有权限，可以忽略*
 
-##### ⑤ 测试
+#### ⑤ 测试
 
 ```shell
 # 看看启动了吗？
@@ -2080,7 +2085,7 @@ cd /tls-gen-master/
 
 
 
-#### 3.10.1.2 基本类型
+### 6.1.2 基本类型
 
 主要时为了产生：CA,client,server的私钥与证书。 
 
@@ -2091,7 +2096,7 @@ cd /tls-gen-master/
 
 
 
-##### ① 生成
+#### ① 生成
 
 ```shell
 cd /tls-gen-master/basic
@@ -2106,19 +2111,19 @@ ls -lha ./result
 
 *PASSWORD 是为了生成p12格式的证书*
 
-##### ②  重新生成
+#### ②  重新生成
 
 ```shell
 make regen PASSWORD=bunnies
 ```
 
-##### ③  校验
+#### ③  校验
 
 ```shell
 make verify
 ```
 
-##### ④  显示信息
+#### ④  显示信息
 
 ```shell
 make info
@@ -2126,7 +2131,7 @@ make info
 
 
 
-##### ⑤ 其他功能
+#### ⑤ 其他功能
 
 ```shell
 # 清空输出
@@ -2137,7 +2142,7 @@ make clean
 
 
 
-#### 3.10.1.2 中间层类型
+### 6.1.2 中间层类型
 
 
 
@@ -2167,7 +2172,7 @@ ls -lha ./result
 
 
 
-#### 3.10.1.3 两个中间层类型
+### 6.1.3 两个中间层类型
 
 
 
@@ -2203,7 +2208,7 @@ ls -lha ./result
 
 
 
-#### 3.10.1.4 将证书复制出来
+### 6.1.4 将证书复制出来
 
 ```shell
 # 进入到容器中，
@@ -2216,7 +2221,7 @@ cp -r ./result/ /data
 
 
 
-### 3.10.2 手工生成
+## 6.2 手工生成
 
 本部分适用于希望提高其对过程，OpenSSL命令行工具以及一些重要方面OpenSSL配置的了解的人员。
 
@@ -2224,13 +2229,13 @@ cp -r ./result/ /data
 
 
 
-#### 3.10.2.1 证书颁发机构
+### 6.2.1 证书颁发机构
 
 有时候，使用SSL协议是自己内部服务器使用的，这时可以不必去找第三方权威的CA机构做证书，可以做自签证书（自己创建root CA（非权威））主要有以下三个步骤。
 
 
 
-##### ①  创建工作目录
+#### ①  创建工作目录
 
 为证书颁发机构创建一个目录
 
@@ -2245,7 +2250,7 @@ touch index.txt
 
 
 
-##### ②  配置openssl.cnf文件
+#### ②  配置openssl.cnf文件
 
 现在，在新创建的`testca` 目录中添加以下OpenSSL配置文件`openssl.cnf`：
 
@@ -2327,7 +2332,7 @@ extendedKeyUsage = 1.3.6.1.5.5.7.3.1
 
 
 
-##### ③  生成密钥和证书
+#### ③  生成密钥和证书
 
 接下来，我们需要生成测试证书颁发机构将使用的密钥和证书。仍在testca 目录中：
 
@@ -2347,7 +2352,7 @@ Java和.NET客户端使用称为PKCS＃12的证书格式和自定义证书存储
 
 
 
-#### 3.10.2.2 服务器端
+### 6.2.2 服务器端
 
 获取权威机构颁发的证书，
 
@@ -2378,7 +2383,7 @@ openssl pkcs12 -export -out server_certificate.p12 -in server_certificate.pem -i
     -passout pass:MySecretPassword
 ```
 
-#### 3.10.2.3 客户端
+### 6.2.3 客户端
 
 原理同服务器端，因为要做双向认证，所以这里也需要生成
 
@@ -2413,7 +2418,7 @@ openssl pkcs12 -export -out client_certificate.p12 -in client_certificate.pem -i
 
 
 
-## 3.11 压力测试
+## 7 压力测试
 
 
 

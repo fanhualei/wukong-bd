@@ -1,0 +1,13 @@
+
+
+version: '3'
+services:
+
+  tls-gen:
+    hostname: tls-gen
+    build: ./tls-gen
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /data/tls-gen/:/data/
+
+

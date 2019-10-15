@@ -4,10 +4,6 @@
 
 
 
-
-
-
-
 # 1. 部署架构
 
 [本文文档的代码在这里可以找到](https://github.com/fanhualei/wukong-bd/tree/master/examples/docker-compose)
@@ -623,6 +619,12 @@ docker-compose up --build -d
 
 ## 3.5 单元测试
 
+
+
+内部 Tomcat Redis Mysql rabbitMq联通：`backup` 可以连通`mysql` 。 `mosquitto` 可以连通`rabbitmq`
+
+
+
 ①②③④⑤⑥⑦⑧⑨
 
 ### 3.5.1 常用命令
@@ -922,12 +924,6 @@ docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabb
 
 
 
-
-
-
-
-
-
 > mqtt客户端
 
 * [MQTT入门（4）- 客户端工具](https://www.iteye.com/blog/rensanning-2406598)
@@ -938,13 +934,200 @@ docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabb
 
 
 
-## 3.6 集成测试
+## 3.6 建立Nginx工程
 
-内部 Tomcat Redis Mysql rabbitMq联通
+这个工程主要用来做反向代理，主要预留的功能有：
 
-上面已经测试过，`backup` 可以连通`mysql` 。 `mosquitto` 可以连通`rabbitmq`
+* www 目录，存放网页
+* log 目录，存放日志
+* myconf目录，存放http的配置文件
+* myconf-stream目录，存放stream反向代理的文件
 
 
+
+
+
+### ① 建立工程目录
+
+```shell
+mkdir -p /opt/my-nginx
+cd /opt/my-nginx
+```
+
+
+
+### ②  创建nginx.conf文件
+
+```
+# 要生成的nginx.conf 放在nginx目录中，这个目录今后放dockerfile文件
+mdir nginx
+cd ./nginx
+```
+
+
+
+从默认的nginx版本中复制出一份`nginx.conf`，然后做以下的修改：
+
+* 去掉nginx版本号，为了安全
+* 引入myconf目录
+* 引入myconf-stream目录
+
+为了方便编辑，这里做了一个批处理
+
+> 创建一个`createConf.sh` 文件
+
+```shell
+#!/bin/bash
+
+rm nginx.conf
+# 运行一个环境，来复制默认的conf文件,然后删除
+docker run --name my-nginx-temp  -d nginx:alpine 
+docker cp my-nginx-temp:/etc/nginx/nginx.conf ./ 
+docker rm -f my-nginx-temp ;
+
+# 去掉版本，添加html配置目录
+lineNum=$(grep -nr 'include /etc/nginx/conf.d/\*.conf;'  ./nginx.conf  | awk -F ':' '{print $1}') 
+numi=${lineNum}i 
+sed -i ${numi}"include /etc/nginx/myconf/*.conf;" ./nginx.conf 
+sed -i ${numi}"server_tokens off;" ./nginx.conf 
+
+
+# 添加stream配置目录
+lineNum=$(grep -nr 'http {'  ./nginx.conf  | awk -F ':' '{print $1}') 
+numi=${lineNum}i 
+
+sed -i ${numi}"#-------------- " ./nginx.conf 
+sed -i ${numi}"}" ./nginx.conf 
+sed -i ${numi}"include /etc/nginx/myconf-stream/*.conf;" ./nginx.conf 
+sed -i ${numi}"stream {" ./nginx.conf 
+sed -i ${numi}"# fanhladd " ./nginx.conf 
+```
+
+
+
+```shell
+# 执行这个脚本生成一个 nginx.conf，去掉nginx的版本信息，为了安全
+chmod +x createConf.sh
+./createConf.sh
+```
+
+
+
+
+
+### ③  创建Dockerfile文件
+
+> 创建Dockerfile文件
+
+```dockerfile
+#备份镜像
+FROM nginx:alpine
+
+#替换脚本
+COPY nginx.conf    /etc/nginx/nginx.conf
+```
+
+
+
+> nginx.conf 默认的样子
+
+```properties
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+
+# fanhladd
+stream {
+include /etc/nginx/myconf-stream/*.conf;
+}
+#--------------
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+server_tokens off;
+include /etc/nginx/myconf/*.conf;
+    include /etc/nginx/conf.d/*.conf;
+}    
+```
+
+
+
+###  ④  编写comfose文件
+
+
+
+```shell
+# 到compose根目录
+cd ..
+vi docker-compose.yml
+```
+
+
+
+```yml
+version: '3'
+services:
+
+  nginx:
+    hostname: nginx
+    build: ./nginx
+    restart: always
+    # 此处一定要使用host，不然反向代理不通
+    network_mode: host   
+    volumes:
+      - /data/my-nginx/nginx/www/:/usr/share/nginx/html/
+      - /data/my-nginx/nginx/logs/:/var/log/nginx/
+      # 存放可以定义http与https的代理文件
+      - /data/my-nginx/nginx/myconf/:/etc/nginx/myconf/
+      # 存放配置方向代理例如rabbitmq,mysql的配置文件
+      - /data/my-nginx/nginx/myconf-stream/:/etc/nginx/myconf-stream/
+      - /etc/localtime:/etc/localtime:ro
+```
+
+
+
+### ⑤ 生成容器
+
+```shell
+docker-compose up -d
+```
+
+
+
+### ⑥ 测试
+
+生成一个测试文件
+
+```
+echo hello world $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx/nginx/www/index.html
+```
+
+
+
+- 在浏览器中访问
+  - http://192.168.1.179/
 
 
 
@@ -955,11 +1138,17 @@ Nginx集成
 - 方向代理Tomcat
   - Https解析
   - WebSocket
-- 反向代理RabbitMq
+  
+  
+
+Nginx反向代理tomcat的好处有两个：
+
+- 是可以简化SSL配置，tomcat不用配置SSL
+- 使用域名来解析到不同的tomcat端口上。
 
 
 
-### 3.7.0 常见问题
+### 3.7.1 常见问题
 
 方向代理不成功
 
@@ -980,119 +1169,6 @@ firewall-cmd --query-port=80/tcp
 
 
 
-
-
-### 3.7.1 新建Nginx工程
-
-
-
-#### ① 建立工作目录
-
-```shell
-mkdir -p /opt/my-nginx
-cd /opt/my-nginx
-```
-
-
-
-#### ②  创建Dockerfile文件
-
-```
-mdir nginx
-cd ./nginx
-```
-
-
-
-> 创建一个`createConf.sh` 文件
-
-```shell
-# 运行一个环境，来复制默认的conf文件,然后删除
-docker run --name my-nginx-temp  -d nginx:alpine 
-docker cp my-nginx-temp:/etc/nginx/nginx.conf ./ 
-docker rm -f my-nginx-temp ;
-
-lineNum=$(grep -nr 'include /etc/nginx/conf.d/\*.conf;'  ./nginx.conf  | awk -F ':' '{print $1}') 
-numi=${lineNum}i 
-sed -i ${numi}"include /etc/nginx/myconf/*.conf;" ./nginx.conf 
-sed -i ${numi}"server_tokens off;" ./nginx.conf 
-```
-
-
-
-```shell
-# 执行这个脚本生成一个 nginx.conf，去掉nginx的版本信息，为了安全
-chmod +x createConf.sh
-./createConf.sh
-```
-
-
-
-> 创建Dockerfile文件
-
-```dockerfile
-#备份镜像
-FROM nginx:alpine
-
-#替换脚本
-COPY nginx.conf    /etc/nginx/nginx.conf
-```
-
-
-
-#### ③ 编写comfose文件
-
-
-
-```shell
-vi docker-compose.yml
-```
-
-
-
-```yml
-version: '3'
-services:
-
-  nginx:
-    hostname: nginx
-    build: ./nginx
-    restart: always
-    # 此处一定要使用host，不然反向代理不通
-    network_mode: host   
-    volumes:
-      - /data/my-nginx/nginx/www/:/usr/share/nginx/html/
-      - /data/my-nginx/nginx/logs/:/var/log/nginx/
-      # 自己可以添加nginx的配置文件
-      - /data/my-nginx/nginx/myconf/:/etc/nginx/myconf/
-      - /etc/localtime:/etc/localtime:ro
-```
-
-
-
-#### ④  生成容器
-
-```shell
-docker-compose up -d
-```
-
-
-
-#### ⑤ 测试
-
-生成一个测试文件
-
-```
-echo hello world $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx/nginx/www/index.html
-```
-
-
-
-- 在浏览器中访问
-  - http://192.168.1.179/
-
-
-
 ### 3.7.2 反向代理80端口
 
 
@@ -1104,8 +1180,6 @@ echo hello world $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx/nginx/www/index.ht
 > 打开这个网址，看看能不能访问到
 
 http://192.168.1.179:21080
-
-
 
 
 
@@ -1121,7 +1195,7 @@ vi /data/my-nginx/nginx/myconf/my-tomcat.conf
 
 > my-tomcat.conf 文件
 
-```xml
+```properties
 server {
   listen 80;
   #这个需要修改
@@ -1172,7 +1246,13 @@ http://my-tomcat/
 
 #### ① 得到Https证书
 
-在阿里云得到证书文件，并放到指定文件夹`ss-cert`中
+在阿里云得到证书文件，并放到指定文件夹`/data/my-nginx/nginx/myconf/ss-cert`中
+
+```shell
+mkdir /data/my-nginx/nginx/myconf/ss-cert
+```
+
+这个目录映射到了容器的`/etc/nginx/myconf/ss-cert/` 目录
 
 
 
@@ -1188,14 +1268,13 @@ vi /data/my-nginx/nginx/myconf/my-tomcat-https.conf
 
 > my-tomcat-https.conf 文件
 
-```xml
+```properties
 server {
   listen 443 ssl;
 
   server_name ss.runzhichina.com;
   server_tokens off;
 
-  # ssl on;
   root html;
   index index.html index.htm;
   ssl_certificate   /etc/nginx/myconf/ss-cert/1893036_ss.runzhichina.com.pem;
@@ -1257,16 +1336,13 @@ https://ss.runzhichina.com/
 
 
 
-**如果不能访问**，请看看`443`端口是否打开
+**如果不能访问**，请看看`443`端口防火墙是否打开
+
+
 
 
 
 ## 3.8 Nginx反向代理RabbitMq
-
-Nginx反向代理tomcat的好处有两个：
-
-* 是可以简化SSL配置，tomcat不用配置SSL
-* 使用域名来解析到不同的tomcat端口上。
 
 
 
@@ -1278,10 +1354,6 @@ Nignx反向代理RabbitMq：
 
 
 ### 3.8.1 无SSL反向代理
-
-
-
-> 下面简单说明以下如何进行代理。
 
 
 
@@ -1308,54 +1380,23 @@ Nignx反向代理RabbitMq：
 
 
 
-#### ②  在nginx.conf配置stream代理
+#### ②  添加stream代理文件
 
-添加了`stream`这一章节
-
-```xml
-user  nginx;
-worker_processes  auto;
-
-error_log  /var/log/nginx/error.log warn;
-pid        /var/run/nginx.pid;
+```shell
+vi /data/my-nginx/nginx/myconf-stream/rabbit.conf
+```
 
 
-events {
-    worker_connections  1024;
-}
 
-stream {
-    server {
-        listen 1883;
-        proxy_connect_timeout 3s;
-        proxy_timeout 525600m;    
-        proxy_pass 192.168.1.179:31883;
-        }                          
-}       
+> rabbit.conf
 
-
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
-
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /var/log/nginx/access.log  main;
-
-    sendfile        on;
-    #tcp_nopush     on;
-
-    keepalive_timeout  65;
-
-    #gzip  on;
-
-server_tokens off;
-include /etc/nginx/myconf/*.conf;
-    include /etc/nginx/conf.d/*.conf;
-}
-
+```properties
+server {
+	listen 1883;
+	proxy_connect_timeout 3s;
+	proxy_timeout 525600m;    
+	proxy_pass 192.168.1.179:31883;
+}                          
 ```
 
 
@@ -1377,11 +1418,25 @@ firewall-cmd --query-port=1883/tcp
 
 
 
+#### ④  重启nginx
+
+重启nginx配置
+
+```shell
+# 一般要执行下面文件，检查以下
+docker-compose exec nginx nginx -t
+
+# 然后再执行配置文件
+docker-compose exec nginx nginx -s reload
+```
 
 
-#### ④  使用MQTTfx进行测试
+
+#### ⑤ 使用MQTTfx进行测试
 
 按照正常的配置方法进行测试就可以了。
+
+![alt](imgs/rabbitmq-connect-no-ssl.png)
 
 
 
@@ -1421,106 +1476,65 @@ firewall-cmd --query-port=1883/tcp
 证书制作过程，见3.10
 
 ```shell
-mkdir /data/my-nginx/nginx/myconf/rabbitmq-cert
+mkdir -p /data/my-nginx/nginx/myconf-stream/rabbitmq-cert
 
 cd /opt/myapp/rabbitmq
-cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/ca_certificate.pem
+cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/ca_certificate.pem
 
-cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_certificate.pem
+cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem
 
-cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_key.pem
-
-
+cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_key.pem
 
 ```
 
 
 
-#### ③  在nginx.conf配置stream代理
+#### ③  添加stream代理文件
 
 
 
 ```shell
-docker-compose exec nginx ash
->cd /etc/nginx/
->vi nginx.conf
+vi /data/my-nginx/nginx/myconf-stream/rabbitmq-ssl.conf
 ```
 
 
 
-添加了`stream`这一章节
+> rabbitmq-ssl.conf
+
+这里与配置https一样，只用添加服务器的证书与私钥就可以了
 
 ```ini
-user  nginx;
-worker_processes  auto;
+       
+server {
+  listen 8883 ssl;
+  proxy_connect_timeout 3s;
+  proxy_timeout 525600m;    
+  proxy_pass 192.168.1.179:31883;
 
-error_log  /var/log/nginx/error.log warn;
-pid        /var/run/nginx.pid;
-
-
-events {
-    worker_connections  1024;
-}
-
-stream {
-    server {
-        listen 1883;
-        proxy_connect_timeout 3s;
-        proxy_timeout 525600m;    
-        proxy_pass 192.168.1.179:31883;
-     }
-        
-    server {
-  		listen 8883 ssl;
-  		proxy_connect_timeout 3s;
-  		proxy_timeout 525600m;    
-        proxy_pass 192.168.1.179:31883;
-  		
-  		
-  		ssl_certificate      /etc/nginx/myconf/rabbitmq-cert/server_certificate.pem;
-  		ssl_certificate_key  /etc/nginx/myconf/rabbitmq-cert/server_key.pem;
-  		ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
-  		ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-  		ssl_prefer_server_ciphers on;
+  ssl_certificate      /etc/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem;
+  ssl_certificate_key  /etc/nginx/myconf-stream/rabbitmq-cert/server_key.pem;
+  ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   
-     }       
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  ssl_prefer_server_ciphers on;
+
 }       
-
-
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
-
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /var/log/nginx/access.log  main;
-
-    sendfile        on;
-    #tcp_nopush     on;
-
-    keepalive_timeout  65;
-
-    #gzip  on;
-
-server_tokens off;
-include /etc/nginx/myconf/*.conf;
-    include /etc/nginx/conf.d/*.conf;
-}
 
 ```
 
 
 
 * `ssl_prefer_server_ciphers   on;`
+  
   * //依赖SSLv3和TLSv1协议的服务器密码将优先于客户端密码
 * `ssl_ciphers`
+  
   * 密码加密方式
 * `ssl_protocols`
+  
   * 指定密码为openssl支持的格式
-
-
+  
+  
 
 #### ④  重启nginx
 
@@ -1538,7 +1552,26 @@ docker-compose exec nginx nginx -s reload
 
 
 
-#### ⑤ 使用MQTTfx进行测试
+
+
+#### ⑤ 开放8883防火墙端口
+
+一定要重启防火墙，并看到这个端口开发了。
+
+```shell
+# 添加指定需要开放的端口：
+firewall-cmd --add-port=8883/tcp --permanent
+# 重载入添加的端口：
+firewall-cmd --reload
+# 查询指定端口是否开启成功：
+firewall-cmd --query-port=8883/tcp
+```
+
+
+
+
+
+#### ⑥ 使用MQTTfx进行测试
 
 按照正常的配置方法进行测试就可以了。由于nginx方向带了1883与8883两个端口，所以可以用`非SSL`与`SSL`进行连接。
 
@@ -1568,108 +1601,57 @@ docker-compose exec nginx nginx -s reload
 
 【双向方向代理】与【单向方向代理】唯一的不同是：多了一个`ca_certificate.pem`
 
-
-
 ```shell
-mkdir /data/my-nginx/nginx/myconf/rabbitmq-cert
+mkdir -p /data/my-nginx/nginx/myconf-stream/rabbitmq-cert
 
 cd /opt/myapp/rabbitmq
-cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/ca_certificate.pem
+cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/ca_certificate.pem
 
-cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_certificate.pem
+cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem
 
-cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf/rabbitmq-cert/server_key.pem
+cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_key.pem
 ```
 
 
 
-#### ③  在nginx.conf配置stream代理
+#### ③  添加stream代理文件
 
 【双向方向代理】与【单向方向代理】唯一的不同是：多了一个`ca_certificate.pem`
 
+
+
 ```shell
-docker-compose exec nginx ash
->cd /etc/nginx/
->vi nginx.conf
+vi /data/my-nginx/nginx/myconf-stream/rabbitmq-ssl-verify-client.conf
 ```
 
 
 
-添加了`stream`这一章节
+> rabbitmq-ssl-verify-client.conf
+
+
 
 ```ini
-user  nginx;
-worker_processes  auto;
+       
+server {
+  listen 8884 ssl;
+  proxy_connect_timeout 3s;
+  proxy_timeout 525600m;    
+  proxy_pass 192.168.1.179:31883;
 
-error_log  /var/log/nginx/error.log warn;
-pid        /var/run/nginx.pid;
-
-
-events {
-    worker_connections  1024;
-}
-
-stream {
-    server {
-        listen 1883;
-        proxy_connect_timeout 3s;
-        proxy_timeout 525600m;    
-        proxy_pass 192.168.1.179:31883;
-     }
-        
-    server {
-  		listen 8883 ssl;
-  		proxy_connect_timeout 3s;
-  		proxy_timeout 525600m;    
-        proxy_pass 192.168.1.179:31883;
-  		
-  		
-  		ssl_certificate      /etc/nginx/myconf/rabbitmq-cert/server_certificate.pem;
-  		ssl_certificate_key  /etc/nginx/myconf/rabbitmq-cert/server_key.pem;
-  		ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
-  		ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-  		ssl_prefer_server_ciphers on;
-  		
-  		# 开启客户端验证，由于客户端是用ca.crt来签证的
-  		ssl_verify_client on;
-  		ssl_client_certificate /etc/nginx/myconf/rabbitmq-cert/ca_certificate.pem;
+  ssl_certificate      /etc/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem;
+  ssl_certificate_key  /etc/nginx/myconf-stream/rabbitmq-cert/server_key.pem;
+  ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   
-     }       
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  ssl_prefer_server_ciphers on;
+
+  # 开启客户端验证，由于客户端是用ca.crt来签证的
+  ssl_verify_client on;
+  ssl_client_certificate /etc/nginx/myconf-stream/rabbitmq-cert/ca_certificate.pem;
+
 }       
 
-
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
-
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /var/log/nginx/access.log  main;
-
-    sendfile        on;
-    #tcp_nopush     on;
-
-    keepalive_timeout  65;
-
-    #gzip  on;
-
-server_tokens off;
-include /etc/nginx/myconf/*.conf;
-    include /etc/nginx/conf.d/*.conf;
-}
-
 ```
-
-
-
-- `ssl_prefer_server_ciphers   on;`
-  - //依赖SSLv3和TLSv1协议的服务器密码将优先于客户端密码
-- `ssl_ciphers`
-  - 密码加密方式
-- `ssl_protocols`
-  - 指定密码为openssl支持的格式
 
 
 
@@ -1689,7 +1671,24 @@ docker-compose exec nginx nginx -s reload
 
 
 
-#### ⑤ 使用MQTTfx进行测试
+#### ⑤ 开放8884防火墙端口
+
+一定要重启防火墙，并看到这个端口开发了。
+
+```shell
+# 添加指定需要开放的端口：
+firewall-cmd --add-port=8884/tcp --permanent
+# 重载入添加的端口：
+firewall-cmd --reload
+# 查询指定端口是否开启成功：
+firewall-cmd --query-port=8884/tcp
+```
+
+
+
+
+
+#### ⑥ 使用MQTTfx进行测试
 
 按照正常的配置方法进行测试就可以了。由于nginx方向带了1883与8883两个端口，所以可以用`非SSL`与`SSL`进行连接。
 
@@ -1699,7 +1698,7 @@ docker-compose exec nginx nginx -s reload
 
 ![alt](imgs/rabbitmq-ssl-verify-client-setting.png)
 
-
+这个图片中的端口`8883`不对，为了测试，在本节中将端口修改成了`8884`，所以你应该按照`8884`来配置
 
 
 
@@ -1974,23 +1973,264 @@ https://192.168.1.179:15671/
 
 
 
-## 3.10 证书制作过程
+## 3.10 制作证书
 
-[参考网址](https://www.rabbitmq.com/ssl.html#manual-certificate-generation):本指南的这一部分说明了如何生成证书颁发机构，并使用它来生成和签名两个证书/密钥对，一个用于服务器，一个用于客户端库。请注意，可以[使用](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)推荐的[现有工具](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)使该过程[自动化](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)。本部分适用于希望提高其对过程，OpenSSL命令行工具以及一些重要方面OpenSSL配置的了解的人员。
+[参考网址](https://www.rabbitmq.com/ssl.html#manual-certificate-generation):本指南的这一部分说明了如何生成证书颁发机构，并使用它来生成和签名两个证书/密钥对，一个用于服务器，一个用于客户端库。请注意，可以[使用](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)推荐的[现有工具](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)使该过程[自动化](https://www.rabbitmq.com/ssl.html#automated-certificate-generation)。
 
 
+
+### 3.10.1 使用tls-gen生成
+
+参考文档
+
+* [RabbitMQ指南（七） SSL\TLS通信](https://blog.csdn.net/weixin_43533358/article/details/83792038)
+* [gitHub官方网址](https://github.com/michaelklishin/tls-gen)
+
+
+
+#### 3.10.1.1 创建tls-gen镜像
+
+由于tls-gen 需要 `Python 3.5 or later  `  `openssl`  `make`  ，与我机器上的python 冲突
+
+在[example目录中，可以找到相关代码](https://github.com/fanhualei/wukong-bd/tree/master/examples)
+
+
+
+##### ① 建立工程目录
+
+```shell
+mkdir -p /opt/my-tls-gen
+cd /opt/my-tls-gen
+```
+
+
+
+##### ②  创建Dockerfile文件
+
+```shell
+mkdir tls-gen
+cd tls-gen
+vi Dockerfile
+```
+
+
+
+> 创建Dockerfile文件
+
+```dockerfile
+
+FROM python:3.7.4-alpine3.10
+
+#安装make openssl  libssl-dev 下载代码，并且解压到根目录下
+RUN apk add --update --no-cache make openssl unzip \
+    && wget https://github.com/michaelklishin/tls-gen/archive/master.zip \
+    && unzip -d / master.zip
+
+
+#  守护进程，不然程序自动退出
+CMD ["/bin/sh","-c","while true; do sleep 3; done"]
+
+```
+
+
+
+#####  ③  编写comfose文件
+
+```shell
+# 到compose根目录
+cd ..
+vi docker-compose.yml
+```
+
+> docker-compose.yml
+
+```yml
+version: '3'
+services:
+
+  tls-gen:
+    hostname: tls-gen
+    build: ./tls-gen
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /data/tls-gen/:/data/    
+```
+
+
+
+##### ④ 生成容器
+
+```shell
+docker-compose up -d
+```
+
+*生成过程，提示没有权限，可以忽略*
+
+##### ⑤ 测试
+
+```shell
+# 看看启动了吗？
+docker-compose ps
+
+docker-compose exec tls-gen ash
+cd /tls-gen-master/
+```
+
+
+
+
+
+#### 3.10.1.2 基本类型
+
+主要时为了产生：CA,client,server的私钥与证书。 
+
+生成一个CA和由其签名的两个证书/密钥对：
+
+- 1：CA =>cient    证书/密钥对
+- 2：CA =>servier 证书/密钥对
+
+
+
+##### ① 生成
+
+```shell
+cd /tls-gen-master/basic
+# pass a password using the PASSWORD variable
+make PASSWORD=bunnies
+# results will be under the ./result directory
+ls -lha ./result
+
+```
+
+![alt](imgs/tls-gen-case1.png)
+
+*PASSWORD 是为了生成p12格式的证书*
+
+##### ②  重新生成
+
+```shell
+make regen PASSWORD=bunnies
+```
+
+##### ③  校验
+
+```shell
+make verify
+```
+
+##### ④  显示信息
+
+```shell
+make info
+```
+
+
+
+##### ⑤ 其他功能
+
+```shell
+# 清空输出
+make clean 
+```
+
+
+
+
+
+#### 3.10.1.2 中间层类型
+
+
+
+首先生成一个根CA，然后分别生成中server与client的CA，然后再分别签名server与client的证书对。
+
+- Chain 1: root CA => 中间层client CA => client 证书/密钥对
+- Chain 2: root CA => 中间层server CA   => server 证书/密钥对
+
+
+
+ 生成
+
+```shell
+cd /tls-gen-master/separate_intermediates
+# pass a password using the PASSWORD variable
+make PASSWORD=bunnies
+# results will be under the ./result directory
+ls -lha ./result
+
+```
+
+![alt](imgs/tls-gen-separate-intermediates.png)
+
+*PASSWORD 是为了生成p12格式的证书*
+
+其他`make`功能同 **基本类型**
+
+
+
+#### 3.10.1.3 两个中间层类型
+
+
+
+首先生成一个根CA，然后分别两个中间层CA，然后再用第二个中间层证书分别签名server与client的证书对。
+
+- Chain 1: root CA => 中间层1 CA=>中间层2 CA => client 证书/密钥对
+- Chain 2: root CA =>中间层1 CA =>中间层2 CA => server 证书/密钥对
+
+
+
+
+
+ 生成
+
+```shell
+cd /tls-gen-master/two_shared_intermediates
+# pass a password using the PASSWORD variable
+make PASSWORD=bunnies
+# results will be under the ./result directory
+ls -lha ./result
+
+```
+
+![alt](imgs/stl-gen-two_shared_intermediates.png)
+
+*PASSWORD 是为了生成p12格式的证书*
+
+其他`make`功能同 **基本类型**
+
+![alt](imgs/stl-gen-two_shared_intermediates-dir.png)
+
+
+
+
+
+#### 3.10.1.4 将证书复制出来
+
+```shell
+# 进入到容器中，
+cp -r ./result/ /data
+```
+
+然后再宿主机器上`/data/tls-gen`就可以看到了。
+
+
+
+
+
+### 3.10.2 手工生成
+
+本部分适用于希望提高其对过程，OpenSSL命令行工具以及一些重要方面OpenSSL配置的了解的人员。
 
 ![alt](imgs/rabbitmq-ca-create.png)
 
 
 
-### 3.10.1 证书颁发机构
+#### 3.10.2.1 证书颁发机构
 
 有时候，使用SSL协议是自己内部服务器使用的，这时可以不必去找第三方权威的CA机构做证书，可以做自签证书（自己创建root CA（非权威））主要有以下三个步骤。
 
 
 
-#### ①  创建工作目录
+##### ①  创建工作目录
 
 为证书颁发机构创建一个目录
 
@@ -2005,7 +2245,7 @@ touch index.txt
 
 
 
-#### ②  配置openssl.cnf文件
+##### ②  配置openssl.cnf文件
 
 现在，在新创建的`testca` 目录中添加以下OpenSSL配置文件`openssl.cnf`：
 
@@ -2087,7 +2327,7 @@ extendedKeyUsage = 1.3.6.1.5.5.7.3.1
 
 
 
-#### ③  生成密钥和证书
+##### ③  生成密钥和证书
 
 接下来，我们需要生成测试证书颁发机构将使用的密钥和证书。仍在testca 目录中：
 
@@ -2107,7 +2347,7 @@ Java和.NET客户端使用称为PKCS＃12的证书格式和自定义证书存储
 
 
 
-### 3.10.2 服务器端
+#### 3.10.2.2 服务器端
 
 获取权威机构颁发的证书，
 
@@ -2138,7 +2378,7 @@ openssl pkcs12 -export -out server_certificate.p12 -in server_certificate.pem -i
     -passout pass:MySecretPassword
 ```
 
-### 3.10.3 客户端
+#### 3.10.2.3 客户端
 
 原理同服务器端，因为要做双向认证，所以这里也需要生成
 

@@ -468,7 +468,7 @@ vi /opt/myapp/rabbitmq/Dockerfile
 #带有管理界面的rabbitmq
 FROM rabbitmq:3.8.0-management-alpine
 # 启动mqtt插件
-RUN rabbitmq-plugins enable --offline rabbitmq_mqtt
+RUN rabbitmq-plugins enable --offline rabbitmq_mqtt rabbitmq_web_mqtt
 ```
 
 
@@ -591,6 +591,8 @@ services:
     ports:
       - "15672:15672"
       - "31883:1883"
+      #By default the Web MQTT plugin exposes a WebSocket endpoint on port 15675
+      - "15675:15675"
       
       
   #mosquitto 主要是为了测试 rabbitmq的客户端
@@ -929,6 +931,67 @@ docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabb
 * [MQTT入门（4）- 客户端工具](https://www.iteye.com/blog/rensanning-2406598)
 
 * 推荐：MQTTfx  或 Mosquitto 
+
+
+
+
+
+### 3.5.6 测试web-mqtt
+
+[官方文档](https://www.rabbitmq.com/web-mqtt.html)
+
+#### ①  下载例子代码
+
+
+
+```shell
+cd /data/myapp/tomcat-wx/webapps/
+
+wget  https://github.com/rabbitmq/rabbitmq-web-mqtt-examples/archive/master.zip
+
+yum install -y unzip
+unzip master.zip
+mv rabbitmq-web-mqtt-examples-master/priv/  ./
+rm -fr rabbitmq-web-mqtt-examples-master/
+
+```
+
+
+
+#### ② 开放15675防火墙端口(临时)
+
+一定要重启防火墙，并看到这个端口开发了。
+
+真实环境中，会用nginx的安全套阶层来反向代理的。
+
+```shell
+# 添加指定需要开放的端口：
+firewall-cmd --add-port=15675/tcp --permanent
+# 重载入添加的端口：
+firewall-cmd --reload
+# 查询指定端口是否开启成功：
+firewall-cmd --query-port=15675/tcp
+```
+
+
+
+
+
+②  修改相关的html脚本
+
+> echo.html
+
+```shell
+cd priv
+vi echo.html
+# var wsbroker = 192.168.1.179;  //mqtt websocket enabled broker
+```
+
+
+
+
+
+在浏览器中输入`http://192.168.1.179:15672/  `，访问到rabbitmq，用户名：guest  密码：fanhualei
 
 
 

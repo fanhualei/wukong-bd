@@ -942,9 +942,10 @@ docker-compose exec mosquitto mosquitto_pub -t topic1 -m 'hello world1'  -h rabb
 
 #### ①  下载例子代码
 
-
+可以将这个脚本放到`tomcat-wx`目录中，方便用浏览器访问
 
 ```shell
+#已经运行的tomcat工程
 cd /data/myapp/tomcat-wx/webapps/
 
 wget  https://github.com/rabbitmq/rabbitmq-web-mqtt-examples/archive/master.zip
@@ -975,29 +976,341 @@ firewall-cmd --query-port=15675/tcp
 
 
 
-
-
-②  修改相关的html脚本
+#### ③  修改echo.html脚本
 
 > echo.html
+
+修改服务器的地址，并且添加登录所需要的用户与密码
 
 ```shell
 cd priv
 vi echo.html
-# var wsbroker = 192.168.1.179;  //mqtt websocket enabled broker
+# var wsbroker = '192.168.1.179';  //mqtt websocket enabled broker
+# var options = {
+#     timeout: 3,
+#     userName: 'guest',
+#     password: 'fanhualei',
+```
+
+
+
+> 显示内容
+
+可以发送信息，如果3秒没有相应，那么自动断开，发送信息时，重新连接。
+
+![alt](imgs/rabbitmq-web-mqtt-testing.png)
+
+*在浏览器中输入`http://192.168.1.179:15672/  `，访问到rabbitmq，用户名：guest  密码：fanhualei*
+
+
+
+
+
+#### ④  修改bunny.html脚本
+
+
+
+> 修改bunny.html脚本
+
+跟echo.html一样，需要：修改服务器的地址，并且添加登录所需要的用户与密码
+
+
+
+>  显示内容
+
+可以拿鼠标在上面画，然后会把坐标信息发送的服务器上。
+
+![alt](imgs/rabbitmq-web-mqtt-bunny-test.png)
+
+
+
+#### ⑤ 安全方面注意事项
+
+> 基本问题
+
+* 如何使用https
+  * 用nginx做代理就可以了
+* 如何保证登录后才能访问这个页面
+  * 将client端的html防止到一个受权限控制的页面。
+* mqtt密码泄露怎么办？在浏览器中可以看到这个密码
+  * 这个还没有想到好的办法，只能在topic上做应用了，让topic很难跟踪。
+* 如何使用证书？
+  * 不知道呢，好像不行。
+
+
+
+> 网上的安全方案
+
+* [Mqtt精髓系列之安全](https://blog.csdn.net/yangguosb/article/details/78677774)
+* [浅析MQTT安全](http://rui0.cn/archives/975)
+* 为每个设备设定单独的权限，如果Rabbit这个问题不能解决，那么只能使用商业的MQTT工具了或者使用mosquitto了。
+  * mosquitto 可以对每个topic进行认证
+  * [【转载】MQTT的学习之Mosquitto集群搭建](https://www.cnblogs.com/chen1-kerr/p/7269388.html)
+
+
+
+
+
+> 一些基本措施
+
+下面的安全措施，有些可能不能实现
+
+* 避免使用匿名登录
+* 不同用户设定不同的topic
+* 避免使用通配符，得到所有的权限
+
+
+
+#### ⑥ 官网资源
+
+[mqtt官网](http://mqtt.org/)，上面还是有很多资料的，其中mqtt3.3.1是在2014年发布的，所以现在的类库都是好多年前的，不必在意。 今年新发布了mqtt5，估计等上半年后再使用吧，新的东西，要等到其他的厂商适配。
+
+* 服务器列表
+* 类库列表
+  * js
+  * java
+  * c 或c++
+  * 特殊硬件设备：arduino ESP8266 等
+* 工具列表
+
+
+
+### 3.5.7 测试rabbitmq的权限认证
+
+
+
+#### ①  授权指令解释
+
+[参考网址](https://www.rabbitmq.com/rabbitmqctl.8.html#set_topic_permissions)
+
+命令格式：[**set_topic_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#set_topic_permissions) [**-p** vhost] user exchange write read
+
+> 案例1
+
+给用户`janeway`分配虚拟主机的`my-vhost`的`amq.topic` EXchange 下一`janeway-.`开头的路由
+
+```shell
+rabbitmqctl set_topic_permissions -p my-vhost janeway amq.topic "janeway-.*" "^janeway-.*"
+```
+
+
+
+> 案例2
+
+rabbitmq支持变量 `username, vhost, client_id`。`client_id`只能用于mqtt
+
+给用户`janeway`分配虚拟主机的`my-vhost`的`amq.topic` EXchange 下一`janeway-.`开头的路由
+
+```shell
+rabbitmqctl set_topic_permissions -p my-vhost janeway amq.topic "^{username}-.*" "^{username}-.*"
+```
+
+
+
+#### ② 设计方案
+
+根据上面的权限原理，可以这么来设计
+
+| 分类     | 说明             | 权限                                                         |
+| -------- | ---------------- | ------------------------------------------------------------ |
+| 硬件终端 | ①上传  ②接收     | ①上传：读写。②接收：只读                                     |
+| 手机端   | 可以访问所有通道 | 不能直接连接Mqtt服务器，应通过服务器权限分配后，再分配到具体硬件终端。 |
+| 服务器   |                  |                                                              |
+
+> 结论，一共需要三类用户
+
+终端用户（定义一个）： ①上传：只写。②接收：只读 。使用clientId做为区分码。
+
+
+
+#### ③  用户管理指令
+
+> 添加用户
+
+[**add_user**](https://www.rabbitmq.com/rabbitmqctl.8.html#add_user) username password
+
+```
+rabbitmqctl add_user janeway changeit
+```
+
+
+
+> 验证用户
+
+[**authenticate_user**](https://www.rabbitmq.com/rabbitmqctl.8.html#authenticate_user) username password
+
+```
+rabbitmqctl authenticate_user janeway verifyit
+```
+
+
+
+> 变更密码
+
+[**change_password**](https://www.rabbitmq.com/rabbitmqctl.8.html#change_password) username newpassword
+
+```
+rabbitmqctl change_password janeway newpass
+```
+
+
+
+> 清空密码
+
+[**clear_password**](https://www.rabbitmq.com/rabbitmqctl.8.html#clear_password) username
+
+```
+rabbitmqctl clear_password janeway
+```
+
+清空完毕后，不能登录系统
+
+
+
+> 删除用户
+
+[**delete_user**](https://www.rabbitmq.com/rabbitmqctl.8.html#delete_user) username
+
+```
+rabbitmqctl delete_user janeway
+```
+
+
+
+> 显示用户
+
+[**list_users**](https://www.rabbitmq.com/rabbitmqctl.8.html#list_users)
+
+```
+rabbitmqctl list_users
+```
+
+
+
+> 设置用户tag
+
+[**set_user_tags**](https://www.rabbitmq.com/rabbitmqctl.8.html#set_user_tags) username [tag ...]
+
+```shell
+# 设置分类
+rabbitmqctl set_user_tags janeway administrator
+# 清除分类
+rabbitmqctl set_user_tags janeway
+```
+
+
+
+#### ④ 访问控制指令(显示)
+
+
+
+> 清空vhost授权
+
+[**clear_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#clear_permissions) [**-p** vhost] username
+
+```
+rabbitmqctl clear_permissions -p my-vhost janeway
+```
+
+
+
+> 清空topic授权
+
+[**clear_topic_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#clear_topic_permissions) [**-p** vhost] username [exchange]
+
+`exchange`
+
+*The name of the topic exchange to clear topic permissions, defaulting to all the topic exchanges the given user has topic permissions for.*
+
+```
+rabbitmqctl clear_topic_permissions -p my-vhost janeway amq.topic
+```
+
+
+
+> 显示vhost授权
+
+[**list_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#list_permissions) [**-p** vhost]
+
+```
+rabbitmqctl list_permissions -p my-vhost
+```
+
+
+
+> 显示topic授权
+
+[**list_topic_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#list_topic_permissions) [**-p** vhost]
+
+```
+rabbitmqctl list_topic_permissions -p my-vhost
+```
+
+
+
+> 显示某个用户的授权
+
+[**list_user_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#list_user_permissions) username
+
+```
+rabbitmqctl list_user_permissions janeway
+```
+
+
+
+> 显示某个用户top的授权
+
+[**list_user_topic_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#list_user_topic_permissions) username
+
+```
+rabbitmqctl list_topic_user_permissions janeway
+```
+
+
+
+> 显示所有的vhost
+
+
+
+```
+rabbitmqctl list_vhosts name tracing
 ```
 
 
 
 
 
-在浏览器中输入`http://192.168.1.179:15672/  `，访问到rabbitmq，用户名：guest  密码：fanhualei
+#### ⑤ 访问控制指令(控制)
+
+> 设置vhost权限
+
+[**set_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#set_permissions) [**-p** vhost] user conf write read
+
+```
+rabbitmqctl set_permissions -p my-vhost janeway "^janeway-.*" ".*" ".*"
+```
+
+
+
+> 设置topic权限
+
+[**set_topic_permissions**](https://www.rabbitmq.com/rabbitmqctl.8.html#set_topic_permissions) [**-p** vhost] user exchange write read
+
+```
+rabbitmqctl set_topic_permissions -p my-vhost janeway amq.topic "^janeway-.*" "^janeway-.*"
+```
+
+
+
+```
+rabbitmqctl set_topic_permissions -p my-vhost janeway amq.topic "^{username}-.*" "^{username}-.*"
+```
 
 
 
 
 
-## 4. Nginx反向代理
+# 4. Nginx反向代理
 
 
 
@@ -2475,13 +2788,307 @@ openssl pkcs12 -export -out client_certificate.p12 -in client_certificate.pem -i
 
 
 
+# 7 系统监控
+
+
+
+## 7.1 规划
+
+在单机的环境中，有两种方法来看性能：
+
+> 执行docker的命令
+
+```shell
+docker stats tomcat
+```
+
+> 安装监控软件
+
+推荐：cAdvisor+InfluxDB+Grafana 监控Docker
+
+
+
+
+
+## 7.2 安装
+
+### ① 建立工程目录
+
+```shell
+mkdir -p /opt/my-monitor
+cd /opt/my-monitor
+```
+
+
+
+### ② 编写comfose文件
+
+
+
+```shell
+vi docker-compose.yml
+```
+
+
+
+```yml
+version: '3'
+services:
+
+  influxdb:
+    hostname: influx
+    restart: always
+    image: influxdb:1.5-alpine
+    environment:
+      #初始化一个数据库
+      INFLUXDB_DB: cadvisor
+    ports:
+      - "8086:8086"
+    volumes:
+      - /data/my-monitor/influxdb:/var/lib/influxdb
+      - /etc/localtime:/etc/localtime:ro  
+      
+      
+  grafana:
+    hostname: grafana
+    restart: always
+    image: grafana/grafana
+    volumes:
+      - /data/my-monitor/grafana/data:/var/lib/grafana
+      - /etc/localtime:/etc/localtime:ro    
+    ports:
+      - "3000:3000"
+    depends_on:
+      - influxdb
+
+        
+  cadvisor:
+    hostname: cadvisor
+    restart: always  
+    image: google/cadvisor
+    ports:
+      - "8080:8080"
+    environment:
+      detach: 'true'
+    #连接influxdb,influxdb默认是没有密码的
+    command: -storage_driver=influxdb -storage_driver_db=cadvisor -storage_driver_host=influxdb:8086  
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /etc/localtime:/etc/localtime:ro    
+    depends_on:
+      - influxdb
+       
+     
+```
+
+​    
+
+###  ③  生成容器
+
+```shell
+docker-compose up -d
+```
 
 
 
 
 
 
-## 7 压力测试
+
+### ④    测试
+
+- 在浏览器中访问
+  - [http://192.168.1.179:3000](http://192.168.1.179:3000/)
+
+> 默认密码是：admin admin
+
+![alt](imgs/docker-monitor-grana.png)
+
+
+
+
+
+
+
+## 7.3 单元测试
+
+
+
+### ① influx
+
+
+
+> 参考网址
+
+* [官方说明文档](https://github.com/docker-library/docs/tree/master/influxdb)
+
+
+
+> 管理界面已经不能使用了
+
+adminstrator 在1.3 版本时就被删除了，所以`8083:8083`没有用了
+
+
+
+> 初始化数据库
+
+可以通过命令参数来进行。 
+
+
+
+> 用户权限
+
+influx默认是没有 权限认证的，可以启动，也可以使用命令参数来启动。
+
+
+
+> 持久化
+
+```
+-v $PWD:/var/lib/influxdb
+```
+
+
+
+> 基本命令
+
+也可以登录到系统中使用shell脚本
+
+```
+# 登录到数据库中
+docker-compose exec influxdb influx
+
+# 创建数据库
+> create database <test_name>
+> show databases
+# 使用某个数据库
+> use <test_name>
+# SHOW measurements命令查看所有的表，这个类似于mysql下的 show tables;
+> SHOW MEASUREMENTS;
+# 查询全部数据
+> SELECT * FROM <measurement_name> ORDER BY time DESC LIMIT 3
+```
+
+[influxdb 数据库的简单使用](https://xiexianbin.cn/database/influxdb/2018-04-09-influxdb/)
+
+
+
+### ② cadvisor
+
+用来将采集的数据发送到influx数据库
+
+
+
+> 参考网址
+
+- [官方说明文档](https://github.com/google/cadvisor)
+
+
+
+> 访问地址
+
+可以看到一个UI界面
+
+http://192.168.1.179:8080
+
+
+
+### ③  grafana
+
+
+
+> 参考网址
+
+- [官方说明grafana](https://hub.docker.com/r/grafana/grafana)
+- [安装说明](https://grafana.com/docs/installation/docker/)
+
+
+
+> 持久化存储
+
+```bash
+-v grafana-storage:/var/lib/grafana \
+```
+
+
+
+> 可以安装插件
+
+
+
+> 密码可以从文件中读取
+
+
+
+### ④  其他参考网址
+
+https://www.cnblogs.com/Cherry-Linux/p/9144650.html
+
+
+
+## 7.4 grafana详细配置 
+
+
+
+### 7.4.1 常用模板
+
+[通过官网模板轻松实现Grafana的可视化界面配置（以MySQL监控项为例）](https://www.cnblogs.com/xuliuzai/p/11134714.html)
+
+
+
+[利用谷歌开源工具cAdvisor 结合influxdb存储＋Grafana前端展示进行Docker容器的监控](https://www.cnblogs.com/hanyifeng/p/6233851.html)
+
+### 7.4.2 基本使用
+
+
+
+
+
+## 参考网址
+
+* 详细说明： [cAdvisor+InfluxDB+Grafana 监控Docker](https://www.cnblogs.com/zhujingzhi/p/9844558.html)
+
+* 监控软件对比：http://dockone.io/article/397
+
+
+
+[Docker监控套件(Telegraf+Influxdb+Grafana)研究与实践](https://www.jianshu.com/p/378d0005c0a4)
+
+
+
+# 8 压力测试
+
+可以先测试每个组件的最大吞吐量，然后找到最小的那个
+
+[高并发压力测试工具Tsung使用教程](https://www.awaimai.com/628.html)
+
+## 8.1 Mqtt压力测试
+
+压力测试工具github上开源的工具:https://github.com/emqx/emqtt-bench
+
+[参考网址](http://www.yihaomen.com/article/java/713.htm)
+
+
+
+## 8.2 Mysql 压力测试
+
+
+
+## 8.3 Tomcat 压力测试
+
+
+
+## 8.4 Redis 压力测试
+
+
+
+## 8.5 Nginx整体压力测试
+
+
 
 
 
@@ -2493,6 +3100,10 @@ openssl pkcs12 -export -out client_certificate.p12 -in client_certificate.pem -i
 yum install httpd-tools
 ab -c 5000 -n 500000 http://192.168.1.186:31524/
 ```
+
+
+
+
 
 
 

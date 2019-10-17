@@ -1,0 +1,53 @@
+
+
+version: '3'
+services:
+
+  influxdb:
+    hostname: influx
+    restart: always
+    image: influxdb:1.5-alpine
+    environment:
+      INFLUXDB_DB: cadvisor
+    ports:
+      - "8086:8086"
+    volumes:
+      - /data/my-monitor/influxdb:/var/lib/influxdb
+      - /etc/localtime:/etc/localtime:ro  
+      
+      
+  grafana:
+    hostname: grafana
+    restart: always
+    image: grafana/grafana
+    volumes:
+      - /etc/localtime:/etc/localtime:ro    
+    ports:
+      - "3000:3000"
+    depends_on:
+      - influxdb
+
+        
+  cadvisor:
+    hostname: cadvisor
+    restart: always  
+    image: google/cadvisor
+    ports:
+      - "8080:8080"
+    environment:
+      detach: 'true'
+      #privileged: 'true'
+    command: -storage_driver=influxdb -storage_driver_db=cadvisor -storage_driver_host=influxdb:8086  
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /etc/localtime:/etc/localtime:ro    
+    depends_on:
+      - influxdb
+
+
+
+

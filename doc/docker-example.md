@@ -3062,7 +3062,9 @@ https://www.cnblogs.com/Cherry-Linux/p/9144650.html
 
 # 8 压力测试
 
-可以先测试每个组件的最大吞吐量，然后找到最小的那个
+可以先测试每个组件的最大吞吐量，然后找到最小的那个。
+
+在进行压力测试时，最后提前添加上[系统监控](docker-monitor.md)，这样能看到更直观的效果。
 
 [高并发压力测试工具Tsung使用教程](https://www.awaimai.com/628.html)
 

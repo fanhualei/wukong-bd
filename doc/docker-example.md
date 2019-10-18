@@ -147,7 +147,7 @@ DATA_PATH=/data/myapp
 
 
 
-### Tomcat
+### 3.2.1 Tomcat
 
 有两种做法：
 

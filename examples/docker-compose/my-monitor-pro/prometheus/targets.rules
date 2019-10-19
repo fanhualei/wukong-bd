@@ -1,0 +1,15 @@
+
+groups:
+- name: targets
+  rules:
+  # 监控服务宕机
+  - alert: monitor_service_down
+    expr: up == 0
+    for: 30s
+    labels:
+      severity: critical
+    annotations:
+      summary: "监控服务停止监控"
+      description: "监控服务 {{ $labels.instance }} 没有响应."
+
+

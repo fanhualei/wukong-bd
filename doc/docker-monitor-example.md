@@ -118,8 +118,8 @@ rule_files:  - /etc/prometheus/rules/*.rules
 
 ```yml
 global:
-  scrape_interval:     15s
-  evaluation_interval: 15s
+  scrape_interval:     1m
+  evaluation_interval: 1m
 
   # Attach these labels to any time series or alerts when communicating with
   # external systems (federation, remote storage, Alertmanager).
@@ -128,22 +128,22 @@ global:
 
 # Load and evaluate rules in this file every 'evaluation_interval' seconds.
 rule_files:
-  - "alert.rules"
+  - "*.rules"
 
 # A scrape configuration containing exactly one endpoint to scrape.
 scrape_configs:
   - job_name: 'nodeexporter'
-    scrape_interval: 5s
+    scrape_interval: 15s
     static_configs:
       - targets: ['nodeexporter:9100']
 
   - job_name: 'cadvisor'
-    scrape_interval: 5s
+    scrape_interval: 15s
     static_configs:
       - targets: ['cadvisor:8080']
 
   - job_name: 'prometheus'
-    scrape_interval: 10s
+    scrape_interval: 15s
     static_configs:
       - targets: ['localhost:9090']
 
@@ -159,10 +159,16 @@ alerting:
 
 
 
-#### ③ 配置alert.rules
+#### ③ 配置报警规则
+
+`*.rules` 是报警规则文件
+
+
+
+> 服务监控规则
 
 ```
-vi prometheus/alert.rules
+vi prometheus/targets.rules
 ```
 
 
@@ -178,9 +184,22 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Monitor service non-operational"
-      description: "Service {{ $labels.instance }} is down."
+      summary: "监控服务停止监控"
+      description: "监控服务 {{ $labels.instance }} 没有响应."
+```
 
+
+
+> 监控主机
+
+```
+vi prometheus/host.rules
+```
+
+
+
+```yaml
+groups:
 # 宿主机
 - name: host
   rules:
@@ -191,18 +210,18 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Server under high load"
-      description: "Docker host is under high load, the avg load 1m is at {{ $value}}. Reported by instance {{ $labels.instance }} of job {{ $labels.job }}."
+      summary: "{{ $labels.instance }}负载过高"
+      description: "Docker宿主机当前负载过高, 每秒的平均负载是 {{ $value}}. 当前实例： {{ $labels.instance }} ，具体任务： {{ $labels.job }}."
 
   #这个是用来测试的
   - alert: hostCpuUsageAlert
     expr: sum(avg without (cpu)(irate(node_cpu_seconds_total{mode!='idle'}[5m]))) by (instance) > 0.3
     for: 1m
     labels:
-      severity: page
+      severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} CPU usgae high"
-      description: "{{ $labels.instance }} CPU usage above 85% (current value: {{ $value }})"
+      summary: "{{ $labels.instance }} CPU负载过高"
+      description: "{{ $labels.instance }} CPU负载过高 (当前值: {{ $value }})"
 
 
   # 内存使用过高
@@ -212,21 +231,30 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Server memory is almost full"
-      description: "Docker host memory usage is {{ humanize $value}}%. Reported by instance {{ $labels.instance }} of job {{ $labels.job }}."
+      summary: "{{ $labels.instance }} 内存快用完了"
+      description: "{{ $labels.instance }} 使用了 {{ humanize $value}}%. 当前任务{{ $labels.job }}."
   
   # 判断磁盘空间 rootfs=本地磁盘路径  aufs=挂载磁盘空间
   - alert: high_storage_load
-    expr: (node_filesystem_size_bytes{fstype="aufs"} - node_filesystem_free_bytes{fstype="aufs"}) / node_filesystem_size_bytes{fstype="aufs"}  * 100 > 85
+    expr: (node_filesystem_size_bytes{fstype="rootfs"} - node_filesystem_free_bytes{fstype="rootfs"}) / node_filesystem_size_bytes{fstype="rootfs"}  * 100 > 85
     for: 30s
     labels:
       severity: warning
     annotations:
-      summary: "Server storage is almost full"
-      description: "Docker host storage usage is {{ humanize $value}}%. Reported by instance {{ $labels.instance }} of job {{ $labels.job }}."
+      summary: "{{ $labels.instance }}存储空间不足"
+      description: "{{ $labels.instance }}存储空间是 {{ humanize $value}}%. 当前任务 {{ $labels.job }}."
+```
 
 
 
+```
+vi prometheus/containers.rules
+```
+
+
+
+```yaml
+groups:
 # 监控容器
 - name: containers
   rules:
@@ -237,8 +265,8 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Jenkins down"
-      description: "Jenkins container is down for more than 30 seconds."
+      summary: "Jenkins宕机了"
+      description: "Jenkins超过30秒没有响应了."
 
   # 某个容器的CPU过高	
   - alert: jenkins_high_cpu
@@ -247,8 +275,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Jenkins high CPU usage"
-      description: "Jenkins CPU usage is {{ humanize $value}}%."
+      summary: "Jenkins CPU使用率过高"
+      description: "Jenkins CPU 当前使用率是 {{ humanize $value}}%."
 
   # 某个容器的内储存过高
   - alert: jenkins_high_memory
@@ -257,23 +285,41 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Jenkins high memory usage"
-      description: "Jenkins memory consumption is at {{ humanize $value}}."
+      summary: "Jenkins memory使用率过高"
+      description: "Jenkins memory 使用率是 {{ humanize $value}}."
+```
+
+ 
+
+#### ④ 报警模板的测试
+
+使用`promtool check rules`命令的来进行测试。
+
+```shell
+docker-compose exec prometheus ls /etc/prometheus/
+
+docker-compose exec prometheus promtool check rules  /etc/prometheus/containers.rules
+
+docker-compose exec prometheus promtool check rules  /etc/prometheus/host.rules
+
+docker-compose exec prometheus promtool check rules  /etc/prometheus/targets.rules
 ```
 
 
 
- 
+
+
+
 
 ### 2.3.2 配置alertmanager
 
-①②③④⑤⑥⑦⑧⑨
+
 
 
 
 #### ① 建立alertmanager目录
 
-这个目录未来会被挂载到alertmanager系统中
+这个目录未来会被挂载到`alertmanager`系统中
 
 ```shell
 mkdir alertmanager
@@ -281,7 +327,21 @@ mkdir alertmanager
 
 
 
-#### ② 配置config.yml
+#### ②  配置企业微信
+
+
+
+从[企业微信官网](https://work.weixin.qq.com/)得到 `企业Id Agentid  Secret`
+
+
+
+![alt](imgs/premetheus-alter-to-weixin.png)
+
+
+
+#### ③ 配置config.yml
+
+
 
 ```
 vi alertmanager/config.yml
@@ -289,19 +349,168 @@ vi alertmanager/config.yml
 
 
 
+> config.yml
+
+  
+
+* 解决回复
+  * `resolve_timeout`  默认值为`5m` , 分钟(`minute`)未接收到告警后标记，那么可能解决或者没有解决。
+  * 如果收到的数据值小于报警值，那么会马上发送消息。
+  * `send_resolved=true` 才返回解决信息。
+* 路由匹配
+  * 配置最深的匹配route截至，除非该节点**continue**为true
+  * `match` `match_re` 分别`字符串验证` 与 `正则表达式`
+* 告警分组
+  * **group_wait**参数设置等待时间
+  * **group_by**来定义分组规则
+  * **group_interval**用于定义相同的Group之间发送告警通知的时间间隔
+  * **repeat_interval** 如果警报已经成功发送通知, 想设置发送告警通知之前要等待时间
+
+
+
 ```yaml
+#config.yml
+
+ # 全局配置项
+global:
+  resolve_timeout: 5m
+  wechat_api_corp_id: "ww61d97edebf566d2a"
+  wechat_api_secret: "BeQdkY193DtldiP-3CAHG8Dpa2OdGDyDgG1fG3q9QWo"
+
+  smtp_smarthost: 'smtp.21cn.com:25'
+  smtp_from: 'runzhi_share@21cn.com'
+  smtp_auth_username: 'runzhi_share@21cn.com'
+  smtp_auth_password: '123'
+  smtp_hello: '21cn.com'
+
+
+templates:
+- '*.msg'
+
+
 route:
-    receiver: 'slack'
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 3m
+  receiver: 'wechat'
+  #子路由
+  routes:
+  - receiver: 'email'
+    match:
+      severity: warning
+
 
 receivers:
-    - name: 'slack'
-      slack_configs:
-          - send_resolved: true
-            text: "{{ .CommonAnnotations.description }}"
-            username: 'Prometheus'
-            channel: '#<channel-name>'
-            api_url: 'https://hooks.slack.com/services/<webhook-id>'
+- name: 'wechat'
+  wechat_configs:
+  - agent_id: '1000003'
+    message: '{{ template "wechat.msg" . }}'
+    to_party: '2'
+    send_resolved: true
+
+- name: 'email'
+  email_configs:
+  - to: 'runzhi_share@21cn.com'
+    html: '{{ template "email.msg" . }}'
+    headers: { Subject: " {{ .CommonLabels.instance }} {{ .CommonAnnotations.summary }}" }
+
 ```
+
+
+
+
+
+#### ④ 配置消息模板
+
+这个模板语言不是那么好用，建议使用默认的，也就是不指定模板消息。默认的唯一的确定是英文的提示。
+
+
+
+> 邮件模板
+
+不建议用，因为邮箱经常被当作垃圾邮件。
+
+```shell
+vi alertmanager/email.msg
+```
+
+
+
+```
+{{ define "email.msg" }}
+{{ range .Alerts }}
+ <pre>
+实例: {{ .Labels.instance }}
+信息: {{ .Annotations.summary }}
+详情: {{ .Annotations.description }}
+时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+ </pre>
+{{ end }}
+{{ end }}
+```
+
+
+
+> 微信模板
+
+```shell
+vi wecaht.msg
+```
+
+
+
+```yaml
+{{ define "wechat.msg" }}{{- if gt (len .Alerts.Firing) 0 -}}{{ range .Alerts }}
+@警报
+状态:{{ .Status }}
+级别:{{ .Labels.severity }}
+类型:{{ .Labels.alertname }}
+标题:{{ .Annotations.summary }}
+详情:{{ .Annotations.description }}
+触发时间:{{ .StartsAt.Format "2006-01-02 15:04:05" }}
+{{ end }}{{ end -}}{{- if gt (len .Alerts.Resolved) 0 -}}{{ range .Alerts }}
+@恢复
+状态:{{ .Status }}
+级别:{{ .Labels.severity }}
+类型:{{ .Labels.alertname }}
+标题:{{ .Annotations.summary }}
+详情:{{ .Annotations.description }}
+触发时间:{{ .StartsAt.Format "2006-01-02 15:04:05" }}
+恢复时间: {{ .EndsAt.Format "2006-01-02 15:04:05" }}
+{{ end }}{{ end -}}{{- end }}
+```
+
+
+
+
+
+
+
+#### ⑤ 企业微信调试方法
+
+如果收不到信息，可以先看看日志
+
+```
+docker-compose logs alertmanager
+```
+
+然后看看微信能不能收到信息
+
+- [参考文档](https://blog.csdn.net/qq_36937234/article/details/96306900)
+- [微信提供的调试地址](https://work.weixin.qq.com/api/devtools/devtool.php)
+
+
+
+#### ⑥ 参考文档
+
+* [关于微信与email写的比较全的文档](https://www.e-learn.cn/content/qita/2638665)
+* [Prometheus官方关于微信的配置说明](https://prometheus.io/docs/alerting/configuration/#wechat_config)
+* [一个关于Prometheus全面介绍的文档](https://songjiayang.gitbooks.io/prometheus/content/alertmanager/wechat.html)
+* [Prometheus好多的文档](https://blog.csdn.net/coffin_monkey/article/category/8967165)
+* [Prometheus官方文档中文版](https://github.com/Alrights/prometheus)
+
+①②③④⑤⑥⑦⑧⑨
 
 
 
@@ -624,7 +833,9 @@ http://192.168.1.179:9093
 cat /dev/zero>/dev/null
 ```
 
+分别测试报警与报警取消的状态。
 
+![alt](imgs/prometheus-weixin-alert-message.jpg)
 
 
 

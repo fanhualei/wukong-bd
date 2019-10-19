@@ -1,0 +1,51 @@
+#config.yml
+
+ # 全局配置项
+global:
+  resolve_timeout: 5m
+  wechat_api_corp_id: "wwd2a"
+  wechat_api_secret: "Be9QWo"
+
+  smtp_smarthost: 'smtp.21cn.com:25'
+  smtp_from: 'runzhi_share@21cn.com'
+  smtp_auth_username: 'runzhi_share@21cn.com'
+  smtp_auth_password: '23'
+  smtp_hello: '21cn.com'
+
+
+templates:
+- '*.msg'
+
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 3m
+  receiver: 'wechat'
+  #子路由
+  routes:
+  - receiver: 'wechat'
+    match:
+      severity: warning
+
+
+receivers:
+- name: 'wechat'
+  wechat_configs:
+  - agent_id: '1000003'
+    message: '{{ template "wechat.msg" . }}'
+    to_party: '2'
+    send_resolved: true
+
+- name: 'email'
+  email_configs:
+  - to: 'runzhi_share@21cn.com'
+    html: '{{ template "email.msg" . }}'
+    headers: { Subject: " {{ .CommonLabels.instance }} {{ .CommonAnnotations.summary }}" }
+
+
+
+
+
+

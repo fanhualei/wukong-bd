@@ -1,0 +1,48 @@
+
+
+groups:
+# 宿主机
+- name: host
+  rules:
+  #CPU负载过高
+  - alert: high_cpu_load
+    expr: node_load1 > 1.5
+    for: 30s
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }}负载过高"
+      description: "Docker宿主机当前负载过高, 每秒的平均负载是 {{ $value}}. 当前实例： {{ $labels.instance }} ，具体任务： {{ $labels.job }}."
+
+  #这个是用来测试的
+  - alert: hostCpuUsageAlert
+    expr: sum(avg without (cpu)(irate(node_cpu_seconds_total{mode!='idle'}[5m]))) by (instance) > 0.2
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }} CPU负载过高"
+      description: "{{ $labels.instance }} CPU负载高 (当前值: {{ $value }})"
+
+
+  # 内存使用过高
+  - alert: high_memory_load
+    expr: (sum(node_memory_MemTotal_bytes) - sum(node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes) ) / sum(node_memory_MemTotal_bytes) * 100 > 85
+    for: 30s
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }} 内存快用完了"
+      description: "{{ $labels.instance }} 使用了 {{ humanize $value}}%. 当前任务{{ $labels.job }}."
+  
+  # 判断磁盘空间 rootfs=本地磁盘路径  aufs=挂载磁盘空间
+  - alert: high_storage_load
+    expr: (node_filesystem_size_bytes{fstype="rootfs"} - node_filesystem_free_bytes{fstype="rootfs"}) / node_filesystem_size_bytes{fstype="rootfs"}  * 100 > 85
+    for: 30s
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }}存储空间不足"
+      description: "{{ $labels.instance }}存储空间是 {{ humanize $value}}%. 当前任务 {{ $labels.job }}."
+
+

@@ -1,0 +1,37 @@
+
+
+groups:
+# 监控容器
+- name: containers
+  rules:
+  # 某个容器当掉了
+  - alert: jenkins_down
+    expr: absent(container_memory_usage_bytes{name="jenkins"})
+    for: 30s
+    labels:
+      severity: critical
+    annotations:
+      summary: "Jenkins宕机了"
+      description: "Jenkins超过30秒没有响应了."
+
+  # 某个容器的CPU过高	
+  - alert: jenkins_high_cpu
+    expr: sum(rate(container_cpu_usage_seconds_total{name="jenkins"}[1m])) / count(node_cpu_seconds_total{mode="system"}) * 100 > 10
+    for: 30s
+    labels:
+      severity: warning
+    annotations:
+      summary: "Jenkins CPU使用率过高"
+      description: "Jenkins CPU 当前使用率是 {{ humanize $value}}%."
+
+  # 某个容器的内储存过高
+  - alert: jenkins_high_memory
+    expr: sum(container_memory_usage_bytes{name="jenkins"}) > 1200000000
+    for: 30s
+    labels:
+      severity: warning
+    annotations:
+      summary: "Jenkins memory使用率过高"
+      description: "Jenkins memory 使用率是 {{ humanize $value}}."
+
+

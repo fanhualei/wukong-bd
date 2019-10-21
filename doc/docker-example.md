@@ -1312,16 +1312,20 @@ rabbitmqctl set_topic_permissions -p my-vhost janeway amq.topic "^{username}-.*"
 
 # 4. Nginx反向代理
 
+OpenResty 是Nginx的另外一个版本，这两个版本任意安装一个就行。
 
 
-## 4.1 建立Nginx工程
+
+
+
+## 4.0 建立Nginx工程
 
 这个工程主要用来做反向代理，主要预留的功能有：
 
-* www 目录，存放网页
-* log 目录，存放日志
-* myconf目录，存放http的配置文件
-* myconf-stream目录，存放stream反向代理的文件
+- www 目录，存放网页
+- log 目录，存放日志
+- myconf目录，存放http的配置文件
+- myconf-stream目录，存放stream反向代理的文件
 
 
 
@@ -1330,7 +1334,7 @@ rabbitmqctl set_topic_permissions -p my-vhost janeway amq.topic "^{username}-.*"
 ### ① 建立工程目录
 
 ```shell
-mkdir -p /opt/my-nginx
+mkdir -p /opt/my-nginx    
 cd /opt/my-nginx
 ```
 
@@ -1338,9 +1342,9 @@ cd /opt/my-nginx
 
 ### ②  创建nginx.conf文件
 
-```
+```shell
 # 要生成的nginx.conf 放在nginx目录中，这个目录今后放dockerfile文件
-mdir nginx
+mkdir  /opt/my-nginx/nginx   /opt/my-nginx/nginx/conf.d  /opt/my-nginx/nginx/conf-stream.d
 cd ./nginx
 ```
 
@@ -1348,9 +1352,9 @@ cd ./nginx
 
 从默认的nginx版本中复制出一份`nginx.conf`，然后做以下的修改：
 
-* 去掉nginx版本号，为了安全
-* 引入myconf目录
-* 引入myconf-stream目录
+- 去掉nginx版本号，为了安全
+- 引入myconf目录
+- 引入myconf-stream目录
 
 为了方便编辑，这里做了一个批处理
 
@@ -1363,12 +1367,12 @@ rm nginx.conf
 # 运行一个环境，来复制默认的conf文件,然后删除
 docker run --name my-nginx-temp  -d nginx:alpine 
 docker cp my-nginx-temp:/etc/nginx/nginx.conf ./ 
+docker cp my-nginx-temp:/etc/nginx/conf.d/default.conf ./conf.d 
 docker rm -f my-nginx-temp ;
 
 # 去掉版本，添加html配置目录
 lineNum=$(grep -nr 'include /etc/nginx/conf.d/\*.conf;'  ./nginx.conf  | awk -F ':' '{print $1}') 
 numi=${lineNum}i 
-sed -i ${numi}"include /etc/nginx/myconf/*.conf;" ./nginx.conf 
 sed -i ${numi}"server_tokens off;" ./nginx.conf 
 
 
@@ -1378,7 +1382,7 @@ numi=${lineNum}i
 
 sed -i ${numi}"#-------------- " ./nginx.conf 
 sed -i ${numi}"}" ./nginx.conf 
-sed -i ${numi}"include /etc/nginx/myconf-stream/*.conf;" ./nginx.conf 
+sed -i ${numi}"include /etc/nginx/conf-stream.d/*.conf;" ./nginx.conf 
 sed -i ${numi}"stream {" ./nginx.conf 
 sed -i ${numi}"# fanhladd " ./nginx.conf 
 ```
@@ -1395,16 +1399,18 @@ chmod +x createConf.sh
 
 
 
-### ③  创建Dockerfile文件
+### ③  创建Dockerfile文件(保留)
+
+保留这一步是为了备用，因为今后可能扩展nginx的插件来使用。
 
 > 创建Dockerfile文件
 
 ```dockerfile
 #备份镜像
-FROM nginx:alpine
+#FROM nginx:alpine
 
 #替换脚本
-COPY nginx.conf    /etc/nginx/nginx.conf
+#COPY nginx.conf    /etc/nginx/nginx.conf
 ```
 
 
@@ -1454,7 +1460,7 @@ include /etc/nginx/myconf/*.conf;
 
 
 
-###  ④  编写comfose文件
+### ④  编写comfose文件
 
 
 
@@ -1472,17 +1478,21 @@ services:
 
   nginx:
     hostname: nginx
-    build: ./nginx
-    restart: always
+    # build: ./nginx
+    image: nginx:alpine
+    restart: unless-stopped
     # 此处一定要使用host，不然反向代理不通
     network_mode: host   
     volumes:
       - /data/my-nginx/nginx/www/:/usr/share/nginx/html/
       - /data/my-nginx/nginx/logs/:/var/log/nginx/
+      
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       # 存放可以定义http与https的代理文件
-      - /data/my-nginx/nginx/myconf/:/etc/nginx/myconf/
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
       # 存放配置方向代理例如rabbitmq,mysql的配置文件
-      - /data/my-nginx/nginx/myconf-stream/:/etc/nginx/myconf-stream/
+      - ./nginx/conf-stream.d/:/etc/nginx/conf-stream.d/
+      
       - /etc/localtime:/etc/localtime:ro
 ```
 
@@ -1508,6 +1518,158 @@ echo hello world $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx/nginx/www/index.ht
 
 - 在浏览器中访问
   - http://192.168.1.179/
+
+
+
+
+
+
+
+## 4.1 建立OpenResty工程
+
+这个工程主要用来做反向代理，主要预留的功能有：
+
+* www 目录，存放网页
+* log 目录，存放日志
+* myconf目录，存放http的配置文件
+* myconf-stream目录，存放stream反向代理的文件
+
+
+
+
+
+### ① 建立工程目录
+
+```shell
+mkdir -p /opt/my-nginx-pro
+cd /opt/my-nginx-pro
+
+# 这个镜像比alpine还要小一点
+docker pull openresty/openresty:1.15.8.2-3-stretch-fat
+```
+
+
+
+### ②  创建nginx.conf文件
+
+```shell
+# 要生成的nginx.conf 放在nginx目录中，这个目录今后放dockerfile文件
+mkdir -p nginx  nginx/conf.d  nginx/conf-stream.d
+cd ./nginx
+```
+
+
+
+从默认的nginx版本中复制出一份`nginx.conf`，然后做以下的修改：
+
+* 引入conf-stream.d目录
+* 同时将conf.d/default.conf也复制出来
+
+为了方便编辑，这里做了一个批处理
+
+> 创建一个`createConf.sh` 文件
+
+```shell
+#!/bin/bash
+
+rm nginx.conf
+# 运行一个环境，来复制默认的conf文件,然后删除
+docker run --name my-nginx-temp  -d openresty/openresty:1.15.8.2-3-stretch-fat
+docker cp my-nginx-temp:/usr/local/openresty/nginx/conf/nginx.conf ./ 
+docker cp my-nginx-temp:/etc/nginx/conf.d/default.conf ./conf.d 
+docker rm -f my-nginx-temp ;
+
+# 添加stream配置目录
+lineNum=$(grep -nr 'http {'  ./nginx.conf  | awk -F ':' '{print $1}') 
+numi=${lineNum}i 
+
+sed -i ${numi}"#-------------- " ./nginx.conf 
+sed -i ${numi}"}" ./nginx.conf 
+sed -i ${numi}"include /etc/nginx/conf-stream.d/*.conf;" ./nginx.conf 
+sed -i ${numi}"stream {" ./nginx.conf 
+sed -i ${numi}"# fanhladd " ./nginx.conf 
+```
+
+
+
+```shell
+# 执行这个脚本生成一个 nginx.conf，去掉nginx的版本信息，为了安全
+chmod +x createConf.sh
+./createConf.sh
+```
+
+
+
+###  ③  编写comfose文件
+
+
+
+```shell
+# 到compose根目录
+cd ..
+vi docker-compose.yml
+```
+
+
+
+```yml
+version: '3'
+services:
+
+  nginx:
+    hostname: nginx
+    #build: ./nginx
+    image: openresty/openresty:1.15.8.2-3-stretch-fat
+    restart: always
+    # 此处一定要使用host，不然反向代理不通
+    network_mode: host   
+    volumes:
+
+      - /data/my-nginx-pro/nginx/www/:/usr/local/openresty/nginx/html
+      #- /data/my-nginx-pro/nginx/logs/:/var/log/nginx/
+      
+      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      # 存放可以定义http与https的代理文件
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+      # 存放配置方向代理例如rabbitmq,mysql的配置文件
+      - ./nginx/conf-stream.d/:/etc/nginx/conf-stream.d/
+      - /etc/localtime:/etc/localtime:ro
+```
+
+
+
+### ④ 生成容器
+
+```shell
+docker-compose up -d
+```
+
+
+
+### ⑤ 测试
+
+生成一个测试文件
+
+```
+echo hello ngix $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx-pro/nginx/www/index.html
+```
+
+
+
+- 在浏览器中访问
+  - http://192.168.1.179/
+
+
+
+
+
+### ⑥  参考网址
+
+* [一个系列教程](https://www.cnblogs.com/reblue520/category/1535368.html)
+
+
+
+
 
 
 
@@ -1568,7 +1730,7 @@ http://192.168.1.179:21080
 新撰写的文件应该放到`myconf`目录中 。
 
 ```shell
-vi /data/my-nginx/nginx/myconf/my-tomcat.conf
+vi /opt/my-nginx/nginx/conf.d/my-tomcat.conf
 ```
 
 
@@ -1626,13 +1788,13 @@ http://my-tomcat/
 
 #### ① 得到Https证书
 
-在阿里云得到证书文件，并放到指定文件夹`/data/my-nginx/nginx/myconf/ss-cert`中
+在阿里云得到证书文件，并放到指定文件夹`/opt/my-nginx/nginx/conf.d/ss-cert`中
 
 ```shell
-mkdir /data/my-nginx/nginx/myconf/ss-cert
+mkdir /opt/my-nginx/nginx/conf.d/ss-cert
 ```
 
-这个目录映射到了容器的`/etc/nginx/myconf/ss-cert/` 目录
+
 
 
 
@@ -1641,7 +1803,7 @@ mkdir /data/my-nginx/nginx/myconf/ss-cert
 新撰写的文件应该放到`myconf`目录中 。
 
 ```shell
-vi /data/my-nginx/nginx/myconf/my-tomcat-https.conf
+vi /opt/my-nginx/nginx/conf.d/my-tomcat-https.conf
 ```
 
 
@@ -1657,8 +1819,8 @@ server {
 
   root html;
   index index.html index.htm;
-  ssl_certificate   /etc/nginx/myconf/ss-cert/1893036_ss.runzhichina.com.pem;
-  ssl_certificate_key  /etc/nginx/myconf/ss-cert/1893036_ss.runzhichina.com.key;
+  ssl_certificate   conf.d/ss-cert/1893036_ss.runzhichina.com.pem;
+  ssl_certificate_key  conf.d/ss-cert/1893036_ss.runzhichina.com.key;
   ssl_session_timeout 5m;
   ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -1763,7 +1925,7 @@ Nignx反向代理RabbitMq：
 #### ②  添加stream代理文件
 
 ```shell
-vi /data/my-nginx/nginx/myconf-stream/rabbit.conf
+vi /opt/my-nginx/nginx/conf-stream.d/rabbit.conf
 ```
 
 
@@ -1856,14 +2018,14 @@ docker-compose exec nginx nginx -s reload
 证书制作过程，见3.10
 
 ```shell
-mkdir -p /data/my-nginx/nginx/myconf-stream/rabbitmq-cert
+mkdir -p /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert
 
 cd /opt/myapp/rabbitmq
-cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/ca_certificate.pem
+cp ./manually/testca/ca_certificate.pem /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert/ca_certificate.pem
 
-cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem
+cp ./manually/server/server_certificate.pem /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert/server_certificate.pem
 
-cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_key.pem
+cp ./manually/server/private_key.pem /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert/server_key.pem
 
 ```
 
@@ -1874,7 +2036,7 @@ cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf-stream/rabbitmq
 
 
 ```shell
-vi /data/my-nginx/nginx/myconf-stream/rabbitmq-ssl.conf
+vi /opt/my-nginx/nginx/conf-stream.d/rabbitmq-ssl.conf
 ```
 
 
@@ -1891,8 +2053,8 @@ server {
   proxy_timeout 525600m;    
   proxy_pass 192.168.1.179:31883;
 
-  ssl_certificate      /etc/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem;
-  ssl_certificate_key  /etc/nginx/myconf-stream/rabbitmq-cert/server_key.pem;
+  ssl_certificate      conf-stream.d/rabbitmq-cert/server_certificate.pem;
+  ssl_certificate_key  conf-stream.d/rabbitmq-cert/server_key.pem;
   ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   
   ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -1982,14 +2144,14 @@ firewall-cmd --query-port=8883/tcp
 【双向方向代理】与【单向方向代理】唯一的不同是：多了一个`ca_certificate.pem`
 
 ```shell
-mkdir -p /data/my-nginx/nginx/myconf-stream/rabbitmq-cert
+mkdir -p /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert
 
 cd /opt/myapp/rabbitmq
-cp ./manually/testca/ca_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/ca_certificate.pem
+cp ./manually/testca/ca_certificate.pem /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert/ca_certificate.pem
 
-cp ./manually/server/server_certificate.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem
+cp ./manually/server/server_certificate.pem /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert/server_certificate.pem
 
-cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf-stream/rabbitmq-cert/server_key.pem
+cp ./manually/server/private_key.pem /opt/my-nginx/nginx/conf-stream.d/rabbitmq-cert/server_key.pem
 ```
 
 
@@ -2001,7 +2163,7 @@ cp ./manually/server/private_key.pem /data/my-nginx/nginx/myconf-stream/rabbitmq
 
 
 ```shell
-vi /data/my-nginx/nginx/myconf-stream/rabbitmq-ssl-verify-client.conf
+vi /opt/my-nginx/nginx/conf-stream.d/rabbitmq-ssl-verify-client.conf
 ```
 
 
@@ -2018,8 +2180,8 @@ server {
   proxy_timeout 525600m;    
   proxy_pass 192.168.1.179:31883;
 
-  ssl_certificate      /etc/nginx/myconf-stream/rabbitmq-cert/server_certificate.pem;
-  ssl_certificate_key  /etc/nginx/myconf-stream/rabbitmq-cert/server_key.pem;
+  ssl_certificate      conf-stream.d/rabbitmq-cert/server_certificate.pem;
+  ssl_certificate_key  conf-stream.d/rabbitmq-cert/server_key.pem;
   ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   
   ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -2027,7 +2189,7 @@ server {
 
   # 开启客户端验证，由于客户端是用ca.crt来签证的
   ssl_verify_client on;
-  ssl_client_certificate /etc/nginx/myconf-stream/rabbitmq-cert/ca_certificate.pem;
+  ssl_client_certificate conf-stream.d/rabbitmq-cert/ca_certificate.pem;
 
 }       
 

@@ -1,17 +1,25 @@
-
-
 version: '3'
 services:
 
   nginx:
     hostname: nginx
-    build: ./nginx
-    restart: always
-    network_mode: host
+    # build: ./nginx
+    image: nginx:alpine
+    restart: unless-stopped
+    # 此处一定要使用host，不然反向代理不通
+    network_mode: host   
     volumes:
       - /data/my-nginx/nginx/www/:/usr/share/nginx/html/
       - /data/my-nginx/nginx/logs/:/var/log/nginx/
-      - /data/my-nginx/nginx/myconf/:/etc/nginx/myconf/
+      
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      # 存放可以定义http与https的代理文件
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+      # 存放配置方向代理例如rabbitmq,mysql的配置文件
+      - ./nginx/conf-stream.d/:/etc/nginx/conf-stream.d/
+      
       - /etc/localtime:/etc/localtime:ro
+
+
 
 

@@ -903,3 +903,47 @@ http://192.168.1.179:3000
 
 
 
+
+
+
+
+安装 Nginx
+
+https://hub.docker.com/r/nginx/nginx-prometheus-exporter
+
+https://github.com/nginxinc/nginx-prometheus-exporter
+
+[使用Nginx对访问权限的控制](https://www.cnblogs.com/alterem/p/11495904.html)
+
+nginx-vts prometheus-lua
+
+OpenResty   tengine
+
+https://hub.docker.com/r/openresty/openresty
+
+**ngx_http_reqstat_module**
+
+Tengine  ngx_http_reqstat_module
+
+
+
+* OpenResty 
+
+Nginx,OpenResty HTTP API performance monitoring based on Prometheus LUA library
+
+Last updated: 4 months ago
+
+https://github.com/zrbcool/prometheus-lua-nginx
+
+
+
+
+
+# Prometheus监控Nginx
+
+https://www.jianshu.com/p/3341db428978
+
+# Nginx添加Lua扩展
+
+https://www.jianshu.com/p/d72c8f06684a
+

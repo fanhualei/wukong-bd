@@ -1,5 +1,5 @@
 #备份镜像
-FROM nginx:alpine
+#FROM nginx:alpine
 
 #替换脚本
-COPY nginx.conf    /etc/nginx/nginx.conf
+#COPY nginx.conf    /etc/nginx/nginx.conf

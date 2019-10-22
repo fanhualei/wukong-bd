@@ -651,9 +651,13 @@ vi docker-compose.yml
 version: '3'
 
 networks:
-  monitor-net:
-    driver: bridge
-
+  monitor-net:ls
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.238.0/24"
+        #- subnet: "2001:3984:3989::/64"      
+      
 services:
 
   # prometheus
@@ -885,7 +889,289 @@ http://192.168.1.179:3000
 
   * [Docker监控模板-刚更新-检索条件做的不错-**Docker Container & Host Metrics**](https://grafana.com/grafana/dashboards/10619)
 
-    
+
+
+# 3. Nginx网关监控层
+
+`lua`模式需要自己来定义传输数据，这样足够灵活，但是工作量大。
+
+prometheus推荐两种监控方式 lua或vts，这里使用lua方式，要使用lua方式，需要引入openresty这个nginx的发行版本。
+
+>  引入openresty的初衷
+
+* 老罗在锤子手机发布会推荐了，听说不错。
+* 懒的配置nginx lua环境了
+* 听说这个版本会覆盖掉nginx-plus收费版本的功能。
+
+
+
+## 3.1 配置Nginx
+
+* [nginx-lua-prometheus官方网址](https://github.com/knyar/nginx-lua-prometheus)
+* 官方的网址能统计的信息很少。并且不多于。所以有人扩展这部分
+  * [参考了这个网址](https://github.com/zrbcool/prometheus-lua-nginx/blob/master/workdir/conf.d/counter.conf)
+
+
+
+### ① 下载lua脚本
+
+```shell
+cd /opt/my-nginx-pro/nginx/lua.d
+wget https://raw.githubusercontent.com/knyar/nginx-lua-prometheus/master/prometheus.lua
+```
+
+
+
+### ②  配置Nginx
+
+官网上说要修改`nginx.conf`，实际上只用添加到`prometheus.conf`中就行。
+
+
+
+### ③ 添加Server
+
+```
+vi nginx/conf.d/prometheus.conf
+```
+
+
+
+* `allow `   `deny`  在具体应用中应该看看怎么修改
+
+> 下面这个是官网的教程
+
+官网的教程包含的内容太少，需要自己定义来增加相关内容。
+
+```shell
+lua_shared_dict prometheus_metrics 10M;
+lua_package_path "/etc/nginx/lua.d/?.lua;;";
+init_by_lua '
+  prometheus = require("prometheus").init("prometheus_metrics")
+  metric_requests = prometheus:counter(
+    "nginx_http_requests_total", "Number of HTTP requests", {"host", "status"})
+  metric_latency = prometheus:histogram(
+    "nginx_http_request_duration_seconds", "HTTP request latency", {"host"})
+  metric_connections = prometheus:gauge(
+    "nginx_http_connections", "Number of HTTP connections", {"state"})
+';
+log_by_lua '
+  metric_requests:inc(1, {ngx.var.server_name, ngx.var.status})
+  metric_latency:observe(tonumber(ngx.var.request_time), {ngx.var.server_name})
+';
+
+
+server {
+  listen 9145;
+  #allow 192.168.0.0/16;
+  #deny all;
+  location /metrics {
+    content_by_lua '
+      metric_connections:set(ngx.var.connections_reading, {"reading"})
+      metric_connections:set(ngx.var.connections_waiting, {"waiting"})
+      metric_connections:set(ngx.var.connections_writing, {"writing"})
+      prometheus:collect()
+    ';
+  }
+}
+
+```
+
+
+
+> 自定义增加的内容
+
+
+
+```shell
+lua_shared_dict prometheus_metrics 10M;
+lua_package_path "/etc/nginx/lua.d/?.lua;;";
+init_by_lua '
+  prometheus = require("prometheus").init("prometheus_metrics")
+  metric_requests = prometheus:counter(
+    "nginx_http_requests_total", "Number of HTTP requests", {"host", "status"})
+metric_latency = prometheus:histogram("nginx_http_request_duration_seconds", "HTTP request latency status", {"host","server_port", "status", "scheme", "method", "endpoint", "fullurl","remote_addr","body_bytes_sent"})
+  metric_connections = prometheus:gauge(
+    "nginx_http_connections", "Number of HTTP connections", {"state"})
+';
+log_by_lua '
+  metric_requests:inc(1, {ngx.var.server_name, ngx.var.status})
+  local host = ngx.var.host
+  local fullurl = ngx.unescape_uri(ngx.var.uri)
+  local status = ngx.var.status
+  local scheme = ngx.var.scheme
+  local method = ngx.var.request_method
+  local remote_addr = ngx.var.remote_addr
+  local body_bytes_sent = ngx.var.body_bytes_sent
+  local latency = ngx.var.upstream_response_time or 0
+  local server_port = ngx.var.server_port 
+  local _, _,  endpoint = string.find(request_uri, "(/[.%w_-]*)")
+
+  metric_latency:observe(tonumber(latency), {host,server_port, status, scheme, method, endpoint, fullurl,remote_addr,body_bytes_sent})
+';
+
+
+server {
+  listen 9145;
+  #allow 192.168.0.0/16;
+  #deny all;
+  location /metrics {
+    content_by_lua '
+      metric_connections:set(ngx.var.connections_reading, {"reading"})
+      metric_connections:set(ngx.var.connections_waiting, {"waiting"})
+      metric_connections:set(ngx.var.connections_writing, {"writing"})
+      prometheus:collect()
+    ';
+  }
+}
+```
+
+
+
+
+
+
+
+
+
+### ④ 重启Nginx
+
+
+
+```shell
+# 一般要执行下面文件，检查以下
+docker-compose exec nginx nginx -t
+
+# 然后再执行配置文件
+docker-compose exec nginx nginx -s reload
+```
+
+
+
+### ⑤ 测试
+
+
+
+> 在浏览器无法访问
+
+```
+http://192.168.1.179:9145/metrics
+```
+
+
+
+> 在外网通过浏览器也无法访问
+
+
+
+> 执行下面命令，可以看到结果
+
+```shell
+curl  http://192.168.1.179:9145/metrics
+```
+
+![alt](imgs/prometheus-nginx-lua-exproter.png)
+
+
+
+
+
+## 3.2 配置 Prometheus
+
+
+
+### ① Nginx宿主机上开放防火墙
+
+> 参考文档
+
+* [如何开放防火墙](https://www.e-learn.cn/content/qita/2352883)
+* [centos7之firewalld规则详解（二）](https://blog.csdn.net/aizhen_forever/article/details/78396765)
+
+
+
+`9145`默认是不能容器访问的，因为没有打开防火墙。怎么对内部的iP地址开放，又不让外网访问？
+
+* 监控容器的IP地址是可以查看的。
+* 宿主机防火墙，可以针对某些IP地址开放。
+  * 容器的IP地址被固定在这个范围内了`172.16.238.0/24`
+
+```shell
+#查看所有打开的端口： 
+firewall-cmd --zone=public --list-ports
+
+# 针对一个ip段访问
+firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="172.16.238.0/24" port protocol="tcp" port="9145" accept"
+
+#更新防火墙规则： 
+firewall-cmd --reload
+
+#查看规则
+firewall-cmd --list-rich-rules
+
+```
+
+
+
+### ② 修改prometheus.yml
+
+```
+vi prometheus/prometheus.yml
+```
+
+追加:
+
+```
+  - job_name: 'openresty'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['192.168.1.179:9145']
+```
+
+
+
+### ③ 测试
+
+打开浏览器：http://192.168.1.179:9090/graph
+
+输入`UP`，看结果。
+
+![alt](imgs/prometheus-openresty-link-ok.png)
+
+
+
+> 如果出现错误，那么可能是网络的问题，下面有具体的方法
+
+```shell
+# 登陆到prometheus
+docker-compose exec prometheus ash
+> wget 192.168.1.179:9145/metrics
+```
+
+
+
+## 3.3 配置 Grafana
+
+### ①  打开Grafana
+
+http://192.168.1.179:3000
+
+
+
+### ② 网上导入Dashboards脚本
+
+https://grafana.com/grafana/dashboards
+
+添加dashboards
+点击`Create` - `Import`，输入`dashboards的id（推荐462）`
+
+| 编号                    | 说明                     |
+| ----------------------- | ------------------------ |
+| 462                     | 要修改一下，不然没有数据 |
+| 10223                   | 直接出数据               |
+| 10442,10443,10444,10445 | 这个是优化后数据的报表   |
+
+以上报表总体来说，都要修改。
+
+
 
 ①②③④⑤⑥⑦⑧⑨
 

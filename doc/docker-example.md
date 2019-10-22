@@ -1633,6 +1633,8 @@ services:
       - ./nginx/conf.d/:/etc/nginx/conf.d/
       # 存放配置方向代理例如rabbitmq,mysql的配置文件
       - ./nginx/conf-stream.d/:/etc/nginx/conf-stream.d/
+      # 放lua脚本
+      - ./nginx/lua.d/:/etc/nginx/lua.d/
       - /etc/localtime:/etc/localtime:ro
 ```
 
@@ -1663,9 +1665,77 @@ echo hello ngix $(date "+%Y-%m-%d %H:%M:%S") >/data/my-nginx-pro/nginx/www/index
 
 
 
-### ⑥  参考网址
+### ⑥  测试lua脚本
+
+引入了lua是为了更好的使用OpenResty
+
+
+
+> 添加lua脚本
+
+
+
+```
+vi nginx/lua.d/test.lua
+```
+
+
+
+```lua
+local welcome = 'Hello lua'
+ngx.say(welcome)
+```
+
+
+
+> 添加配置文件
+
+```
+vi nginx/conf.d/default.conf
+```
+
+
+
+```
+server {
+     listen 80;
+........................  
+     location /lua {
+          default_type text/plain;
+          content_by_lua_file /etc/nginx/lua.d/test.lua;
+     }
+........................     
+}
+```
+
+
+
+> 重启nginx配置
+
+```shell
+# 一般要执行下面文件，检查以下
+docker-compose exec nginx nginx -t
+
+# 然后再执行配置文件
+docker-compose exec nginx nginx -s reload
+```
+
+
+
+> 浏览器中访问
+
+http://192.168.1.179/lua
+
+
+
+
+
+
+
+### 参考网址
 
 * [一个系列教程](https://www.cnblogs.com/reblue520/category/1535368.html)
+* [OpenResty 最佳实践](https://moonbingbing.gitbooks.io/openresty-best-practices/content/)
 
 
 
@@ -1819,8 +1889,8 @@ server {
 
   root html;
   index index.html index.htm;
-  ssl_certificate   conf.d/ss-cert/1893036_ss.runzhichina.com.pem;
-  ssl_certificate_key  conf.d/ss-cert/1893036_ss.runzhichina.com.key;
+  ssl_certificate   /etc/nginx/conf.d/ss-cert/1893036_ss.runzhichina.com.pem;
+  ssl_certificate_key  /etc/nginx/conf.d/ss-cert/1893036_ss.runzhichina.com.key;
   ssl_session_timeout 5m;
   ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -2053,8 +2123,8 @@ server {
   proxy_timeout 525600m;    
   proxy_pass 192.168.1.179:31883;
 
-  ssl_certificate      conf-stream.d/rabbitmq-cert/server_certificate.pem;
-  ssl_certificate_key  conf-stream.d/rabbitmq-cert/server_key.pem;
+  ssl_certificate      /etc/nginx/conf-stream.d/rabbitmq-cert/server_certificate.pem;
+  ssl_certificate_key  /etc/nginx/conf-stream.d/rabbitmq-cert/server_key.pem;
   ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   
   ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -2170,7 +2240,8 @@ vi /opt/my-nginx/nginx/conf-stream.d/rabbitmq-ssl-verify-client.conf
 
 > rabbitmq-ssl-verify-client.conf
 
-
+  ssl_certificate      /etc/nginx/conf-stream.d/rabbitmq-cert/server_certificate.pem;
+  ssl_certificate_key  /etc/nginx/conf-stream.d/rabbitmq-cert/server_key.pem;
 
 ```ini
        
@@ -2180,8 +2251,8 @@ server {
   proxy_timeout 525600m;    
   proxy_pass 192.168.1.179:31883;
 
-  ssl_certificate      conf-stream.d/rabbitmq-cert/server_certificate.pem;
-  ssl_certificate_key  conf-stream.d/rabbitmq-cert/server_key.pem;
+  ssl_certificate      /etc/nginx/conf-stream.d/rabbitmq-cert/server_certificate.pem;
+  ssl_certificate_key  /etc/nginx/conf-stream.d/rabbitmq-cert/server_key.pem;
   ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
   
   ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -2189,7 +2260,7 @@ server {
 
   # 开启客户端验证，由于客户端是用ca.crt来签证的
   ssl_verify_client on;
-  ssl_client_certificate conf-stream.d/rabbitmq-cert/ca_certificate.pem;
+  ssl_client_certificate /etc/nginx/conf-stream.d/rabbitmq-cert/ca_certificate.pem;
 
 }       
 

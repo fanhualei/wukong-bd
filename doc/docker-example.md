@@ -277,6 +277,46 @@ docker-compose exec mysql sh -c 'exec mysqldump --opt -uroot -pmysql@root wk' >w
 
 
 
+#### ③  添加初始化用户数据
+
+
+
+只要把你自己的初始化脚本放到`/docker-entrypoint-initdb.d/`文件夹下就可以了
+
+```shell
+mkdir -p mysql/initdb
+
+vi mysql/initdb/init.sql
+
+vi mysql/initdb/inituser.sql
+```
+
+
+
+> init.sql
+
+```sql
+create database wk;
+use wk;
+create table user (id int,name varchar(50));
+insert into user values(1,'james');
+insert into user values(2,'sophia');
+```
+
+
+
+> inituser.sql
+
+监控的用户，只能由三个连接
+
+```sql
+CREATE USER 'exporter'@'%' IDENTIFIED BY 'ex-123456';
+GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%';
+GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
+```
+
+
+
 ### 3.2.3 Backup定时备份
 
 
@@ -545,6 +585,9 @@ services:
     volumes:
       - ${DATA_PATH}/mysql/conf:/etc/mysql/conf.d
       - ${DATA_PATH}/mysql/data:/var/lib/mysql
+      #初始化脚本
+      - ./mysql/initdb/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql/initdb/inituser.sql:/docker-entrypoint-initdb.d/inituser.sql
       - /etc/localtime:/etc/localtime:ro
     environment:
       MYSQL_ROOT_PASSWORD: mysql@root
@@ -599,9 +642,116 @@ services:
   mosquitto:
     hostname: mosquitto
     image: eclipse-mosquitto:1.6.7
-    restart: always      
-      
+    restart: unless-stopped      
+
+
+
+
+
+  # mysql-exporter 下面的有问题   
+  mysql-exporter:
+    image: prom/mysqld-exporter
+    hostname: mysql-exporter
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - DATA_SOURCE_NAME="exporter:ex-123456@(mysql:3306)/performance_schema"      
+    restart: unless-stopped
+    expose:
+      - 9104 
+    #启动依赖  
+    depends_on:
+      - mysql  
 ```
+
+
+
+```
+
+
+docker run --name my_mysql_container -e MYSQL_ROOT_PASSWORD=pw123456 -d mysql:5.7
+
+docker run -d -p 9104:9104 --link=my_mysql_container:bdd  \
+        --name  mysqld-exporter  \
+        -e DATA_SOURCE_NAME="root:pw123456@(bdd:3306)/" prom/mysqld-exporter 
+        
+docker exec  -it -u root  mysqld-exporter ash
+
+> ping -c 2 my_mysql_container
+> ping -c 2 bdd
+> wget localhost:9104/metrics        
+        
+docker logs  mysqld-exporter     
+
+docker rm -f mysqld-exporter  
+docker rm -f my_mysql_container  
+```
+
+
+
+```shell
+mkdir mytest
+cd mytest
+vi docker-compose.yml
+```
+
+```yaml
+version: '3'
+
+services:
+  #mysql
+  my_mysql_container:
+    hostname: my_mysql_container
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: pw123456
+  #mysql-exporter
+  mysqld-exporter:
+    image: prom/mysqld-exporter
+    hostname: mysqld-exporter
+    --link=my_mysql_container:bdd
+    environment:
+      - DATA_SOURCE_NAME="root:pw123456@(my_mysql_container:3306)/"  
+```
+
+
+
+```
+
+
+
+
+docker-compose up -d 
+
+docker-compose exec my_mysql_container bash
+
+docker-compose exec my_mysql_container mysql  -uroot -ppw123456
+
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'pw123456' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'172.27.0.2' IDENTIFIED BY 'pw123456' WITH GRANT OPTION;
+
+
+docker-compose exec  -u root  mysqld-exporter ash
+
+
+
+
+> ping -c 2 mysql
+> wget localhost:9104/metrics 
+> exit
+        
+docker-compose logs  mysqld-exporter
+
+docker-compose down 
+
+
+```
+
+
+
+
+
+
 
 
 
@@ -745,6 +895,7 @@ docker-compose exec  mysql  mysql -uroot -pmysql@root
 #登录到mysql 
 
 > show databases;
+> select user,host from mysql.user;
 > create database wk;
 > use wk;
 > show tables;

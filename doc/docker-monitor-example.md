@@ -651,13 +651,17 @@ vi docker-compose.yml
 version: '3'
 
 networks:
-  monitor-net:ls
+  monitor-net:
     ipam:
       driver: default
       config:
         - subnet: "172.16.238.0/24"
         #- subnet: "2001:3984:3989::/64"      
-      
+
+  monitor-target:
+    external:
+      name: myapp_default
+
 services:
 
   # prometheus
@@ -682,6 +686,7 @@ services:
       - "9090:9090"  
     networks:
       - monitor-net
+      - monitor-target
     labels:
       org.label-schema.group: "monitoring"
 
@@ -774,6 +779,23 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+  
+  
+  # mysql-exporter    
+  mysql-exporter:
+    image: prom/mysqld-exporter
+    hostname: mysql-exporter
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - DATA_SOURCE_NAME="exporter:ex-123456@(192.168.1.179:3306)/"      
+    restart: unless-stopped
+    expose:
+      - 9104
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"   
   
 ```
 
@@ -905,7 +927,7 @@ prometheus推荐两种监控方式 lua或vts，这里使用lua方式，要使用
 
 
 
-## 3.1 配置Nginx
+## 3.1 配置Nginx监控
 
 * [nginx-lua-prometheus官方网址](https://github.com/knyar/nginx-lua-prometheus)
 * 官方的网址能统计的信息很少。并且不多于。所以有人扩展这部分
@@ -922,13 +944,9 @@ wget https://raw.githubusercontent.com/knyar/nginx-lua-prometheus/master/prometh
 
 
 
-### ②  配置Nginx
+### ② 添加Server
 
 官网上说要修改`nginx.conf`，实际上只用添加到`prometheus.conf`中就行。
-
-
-
-### ③ 添加Server
 
 ```
 vi nginx/conf.d/prometheus.conf
@@ -1004,7 +1022,7 @@ log_by_lua '
   local body_bytes_sent = ngx.var.body_bytes_sent
   local latency = ngx.var.upstream_response_time or 0
   local server_port = ngx.var.server_port 
-  local _, _,  endpoint = string.find(request_uri, "(/[.%w_-]*)")
+  local _, _,  endpoint = string.find(fullurl, "(/[.%w_-]*)")
 
   metric_latency:observe(tonumber(latency), {host,server_port, status, scheme, method, endpoint, fullurl,remote_addr,body_bytes_sent})
 ';
@@ -1033,7 +1051,7 @@ server {
 
 
 
-### ④ 重启Nginx
+### ③ 重启Nginx
 
 
 
@@ -1047,7 +1065,7 @@ docker-compose exec nginx nginx -s reload
 
 
 
-### ⑤ 测试
+### ④ 测试
 
 
 
@@ -1100,6 +1118,13 @@ firewall-cmd --zone=public --list-ports
 
 # 针对一个ip段访问
 firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="172.16.238.0/24" port protocol="tcp" port="9145" accept"
+
+firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="172.16.238.0/24" port protocol="tcp" port="3306" accept"
+
+firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="172.30.0.1" port protocol="tcp" port="3306" accept"
+
+firewall-cmd --zone=public --add-port=3306/tcp --permanent
+
 
 #更新防火墙规则： 
 firewall-cmd --reload
@@ -1173,9 +1198,160 @@ https://grafana.com/grafana/dashboards
 
 
 
+
+
+
+
+# 4. Mysql监控
+
+
+
+## 4.1 配置网络
+
+当前遇到一个问题，`myapp` 与 `my-monitor-pro`分别属于docker的不同`network`，所以这两个docker群里面的容器是不能互相访问的，那该怎么办呢？
+
+有两种方法：
+
+* 方法1：`给my-monitor-pro`分配可以访问`myapp`的`network`。 
+  * 有点省事，不用开放防火墙端口了。
+  * 缺点只能用在一台机器。
+* 方法2：将Mysql映射到宿主机端口，这样就可以访问了。
+  * 缺点：要配置防火墙，另外还要指定IP才可以访问。
+
+
+
+### 4.1.1 方法1：增加network
+
+
+
+#### ① 修改监控docker-compose
+
+
+
+```yaml
+version: '3'
+
+networks:
+  monitor-net:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.238.0/24"
+        #- subnet: "2001:3984:3989::/64"      
+  #追加了现存网络
+  monitor-target:
+    external:
+      name: myapp_default 
+
+services:
+
+  # prometheus
+  prometheus:
+    image: prom/prometheus:v2.13.1
+    hostname: prometheus
+##################省略的配置######################################
+#只用在prometheus中添加，要监控的network:monitor-target
+    networks:
+      - monitor-net
+      - monitor-target
+##################省略的配置######################################      
+```
+
+
+
+#### ② 测试是否联通
+
+```shell
+# 以root登陆到容器中，不然prometheus登录默认的用户是nobody
+docker-compose exec -u root  prometheus ash
+> ping mysql
+```
+
+*当然也可以用普通用户登录到容器中，然后把ping权限付给普通用户，不推荐这么来做，如果要做，[可以看这个文档](https://blog.csdn.net/wyongqing/article/details/80638135)*
+
+
+
+
+
+### 4.1.2 方法2：访问宿主机端口
+
+这个操作与Nginx的访问相同，具体做法如下：
+
+* 将mysql的端口映射到宿主机上。
+* 修改宿主的防火墙，只让`监控容器`的IP地址段可以访问。
+* 进行测试。（需要使用mysql客户端，或者telent）
+
+
+
+## 4.2 配置Mysql
+
+下面的代码，在配置Mysql的时候，已经做为初始化脚本自动生成了。所以不用操作了。
+
+
+
+下面只是一个示意操作步骤，详情看[Mysql初始化脚本](docker-example.md)
+
+> 添加一个用户
+
+```sql
+CREATE USER 'exporter'@'%' IDENTIFIED BY '123456' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';
+```
+
+*注意：建议为用户设置最大连接限制，以避免在重负载下监视碎片以免服务器过载。并非所有MySQL / MariaDB版本都支持此功能。例如，MariaDB的10.1（提供与Ubuntu 18.04）[并不支持此功能](https://mariadb.com/kb/en/library/create-user/#resource-limit-options)。*
+
+
+
+> 在真实环境中
+
+为了安全，只能监控的主机才能访问
+
+```
+'exporter'@'%'  变更成  'exporter'@'172.16.238.0/24'
+```
+
+
+
+## 4.3 配置Mysql Exporter
+
+[mysqld-exporter Hub-Docker地址](https://hub.docker.com/r/prom/mysqld-exporter)
+
+
+
+详细配置见：[2.4 撰写Compose文件](#2.4 撰写Compose文件)
+
+```shell	
+docker-compose exec -u root  mysql-exporter ash
+
+> ping -c 2 mysql
+172.18.0.3
+> wget localhost:9104/metrics
+
+
+docker-compose logs  mysql-exporter
+```
+
+​      - DATA_SOURCE_NAME="exporter:ex-123456@(172.18.0.3:3306)/wk"
+
+
+
+vi 
+
+## 4.4 配置Prometheus
+
+
+
+
+
+
+
+
+
+## 4.5 配置Grafana
+
+
+
 ①②③④⑤⑥⑦⑧⑨
-
-
 
 # 参考文档
 
@@ -1191,45 +1367,4 @@ https://grafana.com/grafana/dashboards
 
 
 
-
-
-安装 Nginx
-
-https://hub.docker.com/r/nginx/nginx-prometheus-exporter
-
-https://github.com/nginxinc/nginx-prometheus-exporter
-
-[使用Nginx对访问权限的控制](https://www.cnblogs.com/alterem/p/11495904.html)
-
-nginx-vts prometheus-lua
-
-OpenResty   tengine
-
-https://hub.docker.com/r/openresty/openresty
-
-**ngx_http_reqstat_module**
-
-Tengine  ngx_http_reqstat_module
-
-
-
-* OpenResty 
-
-Nginx,OpenResty HTTP API performance monitoring based on Prometheus LUA library
-
-Last updated: 4 months ago
-
-https://github.com/zrbcool/prometheus-lua-nginx
-
-
-
-
-
-# Prometheus监控Nginx
-
-https://www.jianshu.com/p/3341db428978
-
-# Nginx添加Lua扩展
-
-https://www.jianshu.com/p/d72c8f06684a
 

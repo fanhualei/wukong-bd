@@ -148,6 +148,7 @@ scrape_configs:
       - targets: ['localhost:9090']
 
 
+
 alerting:
   alertmanagers:
   - scheme: http
@@ -781,21 +782,43 @@ services:
       org.label-schema.group: "monitoring"
   
   
-  # mysql-exporter    
+  # mysql-exporter(现在不好用)    
   mysql-exporter:
     image: prom/mysqld-exporter
     hostname: mysql-exporter
     volumes:
       - /etc/localtime:/etc/localtime:ro
     environment:
-      - DATA_SOURCE_NAME="exporter:ex-123456@(192.168.1.179:3306)/"      
+      - DATA_SOURCE_NAME="exporter:ex123456@(mysql:3306)/"      
     restart: unless-stopped
     expose:
       - 9104
     networks:
       - monitor-net
+      - monitor-target
     labels:
       org.label-schema.group: "monitoring"   
+  
+
+  # redis_exporter    
+  redis_exporter:
+    image: oliver006/redis_exporter:v1.3.1-alpine
+    hostname: redis_exporter
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=redis123   
+    restart: unless-stopped
+    expose:
+      - 9121
+    networks:
+      - monitor-net
+      - monitor-target
+    labels:
+      org.label-schema.group: "monitoring" 
+  
+  
   
 ```
 
@@ -1202,7 +1225,175 @@ https://grafana.com/grafana/dashboards
 
 
 
-# 4. Mysql监控
+# 4. 监控Mysql(不成功)
+
+
+
+## 4.0 组件的Bug
+
+在compose生成的exporter不能访问mysql
+
+
+
+### 4.0.1 可以成功
+
+只有在docker下建立才可以
+
+```shell
+
+docker run --name my_mysql_container -e MYSQL_ROOT_PASSWORD=pw123456 -d mysql:5.7
+docker run -d -p 9104:9104 --link=my_mysql_container:bdd  \
+        --name  mysqld-exporter  \
+        -e DATA_SOURCE_NAME="root:pw123456@(bdd:3306)/" prom/mysqld-exporter 
+        
+docker exec  -it -u root  mysqld-exporter ash        
+> ping -c 2 my_mysql_container
+> ping -c 2 bdd
+> wget localhost:9104/metrics  
+
+docker logs  mysqld-exporter     
+
+docker rm -f mysqld-exporter  
+docker rm -f my_mysql_container  
+        
+        
+```
+
+
+
+### 4.0.2 compose不行
+
+
+
+```shell
+mkdir mytest
+cd mytest
+vi docker-compose.yml
+```
+
+```yaml
+version: '3'
+
+services:
+  #mysql
+  my_mysql_container:
+    hostname: my_mysql_container
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=pw123456
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_ROOT_HOST=%  
+  #mysql-exporter
+  mysqld-exporter:
+    image: prom/mysqld-exporter
+    hostname: mysqld-exporter
+    environment:
+      - DATA_SOURCE_NAME="root:pw123456@(my_mysql_container:3306)/"  
+```
+
+
+
+```yaml
+
+version: '3'
+
+networks:
+  mysql-net:
+
+services:
+  #mysql
+  my_mysql_container:
+    hostname: my_mysql_container
+    image: mysql:5.7
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: pw123456
+    networks:
+      - mysql-net   
+  #mysql-exporter
+  mysqld-exporter:
+    image: prom/mysqld-exporter
+    hostname: mysqld-exporter
+    networks:
+      - mysql-net      
+    environment:
+      - DATA_SOURCE_NAME="root:pw123456@(mytest_mysql-net:3306)/"
+```
+
+​                                                                                    
+
+docker-compose up -d 
+
+docker-compose down 
+
+> mysql容器
+
+```
+docker-compose exec -u root my_mysql_container bash
+
+> mysql -uroot -ppw123456
+
+```
+
+
+
+> exporter
+
+```
+docker-compose exec  -u root  mysqld-exporter ash
+> ping -c 2 my_mysql_container
+> wget localhost:9104/metrics 
+> exit
+
+docker-compose logs  mysqld-exporter
+```
+
+
+
+常用网址
+
+* https://hub.docker.com/r/prom/mysqld-exporter
+* https://github.com/prometheus/mysqld_exporter
+
+
+
+### go环境
+
+docker pull 
+
+```shell
+
+cd mygo
+yum -y install git
+
+git clone --depth=1 https://github.com/prometheus/mysqld_exporter.git src
+
+
+
+vi docker-compose.yml
+```
+
+```yaml
+version: '3'
+
+services:
+  #mygo
+  mygo:
+    hostname: mygo
+    image: golang
+    volumes:
+      - ./src/:/src/
+    command: ["/bin/sh", "-c" ,  "while true; do sleep 3; done"]
+```
+
+
+
+```shell
+docker-compose exec mygo bash
+```
+
+
 
 
 
@@ -1335,13 +1526,7 @@ docker-compose logs  mysql-exporter
 
 
 
-vi 
-
 ## 4.4 配置Prometheus
-
-
-
-
 
 
 
@@ -1351,7 +1536,167 @@ vi
 
 
 
+
+
+
+
+# 5. 监控 Redis
+
+
+
+## 5.0 简单测试
+
+Prometheus的docker文档写的太差了，所以只能先自己测试一下，看能不能通
+
+
+
+```shell
+mkdir mytest-redis
+cd mytest-redis
+vi docker-compose.yml
+```
+
+```yaml
+version: '3'
+
+services:
+  #redis
+  redis:
+    hostname: redis
+    image: redis:5.0.6-alpine
+    # 开启持久化，并设置密码
+    command: redis-server --appendonly yes --requirepass "redis123"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      
+  # redis_exporter    
+  redis_exporter:
+    image: oliver006/redis_exporter:v1.3.1-alpine
+    hostname: redis_exporter
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=redis123
+    restart: unless-stopped
+```
+
+
+
+
+
+
+
+
+
+## 5.1 网络规划
+
+将`redis_exporter` 安装到`my-monitor-pro中`，通过netword来发现`redis`，详情可以看`4.1章节`
+
+
+
+## 5.2 配置redis_exporter
+
+### ① 配置
+
+* github地址
+
+  * https://github.com/oliver006/redis_exporter
+
+* hub.docker地址
+
+  * https://hub.docker.com/r/oliver006/redis_exporter
+
+  
+
+详细配置见：[2.4 撰写Compose文件](#2.4 撰写Compose文件)
+
+
+
+### ② 测试
+
+```
+docker-compose exec  -u root  redis_exporter ash
+> ping -c 2 redis
+> wget localhost:9121/metrics 
+> exit
+
+docker-compose exec  -u root  redis_exporter wget localhost:9121/metrics 
+
+docker-compose logs  redis_exporter
+```
+
+
+
+## 5.3 配置Prometheus
+
+### ① 配置
+
+```
+vi prometheus/prometheus.yml
+```
+
+
+
+```
+  - job_name: 'redis_exporter'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['redis_exporter:9121']
+```
+
+
+
+```
+docker-compose  restart prometheus
+```
+
+### ② 测试
+
+打开浏览器：http://192.168.1.179:9090/graph
+
+输入`UP`，看结果。
+
+
+
+
+
+## 5.4 配置Grafana
+
+
+
+### ①  打开Grafana
+
+http://192.168.1.179:3000
+
+
+
+### ② 网上导入Dashboards脚本
+
+https://grafana.com/
+
+添加dashboards
+点击`Create` - `Import`，输入`dashboards的id（推荐763）`
+
+| 编号 | 说明     |
+| ---- | -------- |
+| 369  | 可以成功 |
+|      |          |
+|      |          |
+
+以上报表总体来说，都要修改。
+
+
+
+
+
 ①②③④⑤⑥⑦⑧⑨
+
+
+
+
+
+
 
 # 参考文档
 

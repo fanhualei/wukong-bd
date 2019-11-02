@@ -49,6 +49,7 @@
     * Ganglia：服务器监控
     * Nagios 服务器监控
     * [Kettle](doc/Kettle.md)：数据迁移
+    * [flyway: 数据库版本控制](doc/flyway.md)
   * 总体维护
     * [CDH](doc/cdh.md)
 * 开发语言

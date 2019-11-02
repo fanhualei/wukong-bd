@@ -1,0 +1,23 @@
+version: '3'
+services:
+
+  nginx:
+    hostname: nginx
+    #build: ./nginx
+    image: openresty/openresty:1.15.8.2-3-stretch-fat
+    restart: always
+    # 此处一定要使用host，不然反向代理不通
+    network_mode: host   
+    volumes:
+
+      - /data/my-nginx-pro/nginx/www/:/usr/local/openresty/nginx/html
+      #- /data/my-nginx-pro/nginx/logs/:/var/log/nginx/
+      
+      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      # 存放可以定义http与https的代理文件
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+      # 存放配置方向代理例如rabbitmq,mysql的配置文件
+      - ./nginx/conf-stream.d/:/etc/nginx/conf-stream.d/
+      # 放lua脚本
+      - ./nginx/lua.d/:/etc/nginx/lua.d/
+      - /etc/localtime:/etc/localtime:ro

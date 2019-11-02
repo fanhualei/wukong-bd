@@ -12,7 +12,14 @@
 * my-monitor-pro
   * 基于prometheus的监控系统
   * 已经完成了相关的文档。在文档里面找找怎么做吧
+* my-nginx
+  * 一个用来做负载均衡的nginx
+* my-nginx-pro
+  * nginx的另外一个发行版本：openresty
+* my-flyway
+  * 数据库版本控制
 
 
 
 ![alt](https://github.com/fanhualei/wukong-bd/raw/master/doc/imgs/docker-compose-exa-jiagou.png)
+

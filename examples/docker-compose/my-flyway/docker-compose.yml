@@ -1,0 +1,16 @@
+version: '3'
+services:
+  #mysql
+  mysql:
+    hostname: mysql
+    image: mysql:5.7
+    restart: always
+    ports:
+      - "3306:3306"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql@root
+      MYSQL_DATABASE: test
+
+
